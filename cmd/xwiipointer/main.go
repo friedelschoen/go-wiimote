@@ -48,6 +48,17 @@ func watchDevice(dev *xwiimote.Device) {
 		irpointer.NewRepeatFilter(),
 	}
 
+	holdSmooth := irpointer.NewOneEuroSmoothing()
+	holdSmooth.MinCutoff = 0.15
+	holdSmooth.Beta = 0.005
+	holdSmooth.DCutoff = 0.8
+	holdProcess := irpointer.FilterChain{
+		irpointer.NewErrorFilter(),
+		irpointer.NewGlitchFilter(),
+		holdSmooth,
+		irpointer.NewRepeatFilter(),
+	}
+
 	var scroll *irpointer.FVec2
 	var frame irpointer.Frame
 	go func() {
@@ -59,12 +70,6 @@ func watchDevice(dev *xwiimote.Device) {
 
 			dx := scroll.X - frame.Position.X
 			dy := scroll.Y - frame.Position.Y
-			if dx > -10 && dx < 10 {
-				dx = 0
-			}
-			if dy > -10 && dy < 10 {
-				dy = 0
-			}
 			scrollx, scrolly := int32(*HorizScrollSpeed*dx), int32(*ScrollSpeed*dy)
 			fmt.Printf("[%v] scroll to (%d %d) at %.2fcm distance\n", frame.Health, scrollx, scrolly, frame.Distance)
 			mouse.Scroll(scrollx, scrolly)
@@ -124,9 +129,13 @@ func watchDevice(dev *xwiimote.Device) {
 				}
 			}
 		}
-		if !hold && lastIR != nil && lastAccel != nil {
+		if lastIR != nil && lastAccel != nil {
 			frame = pointer.Step(lastIR.Slots, lastAccel.Accel)
-			frame = process.Apply(frame)
+			if hold {
+				frame = holdProcess.Apply(frame)
+			} else {
+				frame = process.Apply(frame)
+			}
 			lastIR = nil
 			lastAccel = nil
 		}

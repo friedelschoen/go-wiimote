@@ -6,6 +6,7 @@ import (
 )
 
 type Filter interface {
+	Reset()
 	Apply(Frame) Frame
 }
 
@@ -25,6 +26,10 @@ type ErrorFilter struct {
 	count    int
 	position FVec2
 	alive    bool
+}
+
+func (f *ErrorFilter) Reset() {
+	f.alive = false
 }
 
 func (f *ErrorFilter) Apply(frame Frame) Frame {
@@ -50,6 +55,10 @@ type GlitchFilter struct {
 	count    int
 	position FVec2
 	alive    bool
+}
+
+func (f *GlitchFilter) Reset() {
+	f.alive = false
 }
 
 func (f *GlitchFilter) Apply(frame Frame) Frame {
@@ -87,6 +96,10 @@ type MarcanSmoothingFilter struct {
 
 	position FVec2
 	alive    bool
+}
+
+func (f *MarcanSmoothingFilter) Reset() {
+	f.alive = false
 }
 
 func (f *MarcanSmoothingFilter) Apply(frame Frame) Frame {
@@ -150,6 +163,10 @@ type OneEuroSmoothingFilter struct {
 
 	x oneEuroAxis
 	y oneEuroAxis
+}
+
+func (f *OneEuroSmoothingFilter) Reset() {
+	f.alive = false
 }
 
 type oneEuroAxis struct {
@@ -246,6 +263,8 @@ type TranslateFilter struct {
 	Clamp       bool
 }
 
+func (f TranslateFilter) Reset() { /* stateless */ }
+
 func (f *TranslateFilter) Apply(frame Frame) Frame {
 	if !frame.Valid {
 		return frame
@@ -262,6 +281,10 @@ type RepeatFilter struct {
 
 	position FVec2
 	alive    bool
+}
+
+func (f *RepeatFilter) Reset() {
+	f.alive = false
 }
 
 func (f *RepeatFilter) Apply(frame Frame) Frame {
