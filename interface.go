@@ -274,6 +274,17 @@ func (InterfaceIR) Name() string {
 	return "Nintendo Wii Remote IR"
 }
 
+func (iface *InterfaceIR) open(dev *Device, node string, wr bool) error {
+	if err := iface.commonInterface.open(dev, node, wr); err != nil {
+		return err
+	}
+	for i := range iface.slots {
+		iface.slots[i].X = 1023
+		iface.slots[i].Y = 1023
+	}
+	return nil
+}
+
 func (iface *InterfaceIR) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
 	if event == C.EV_SYN {
 		var ev EventIR
