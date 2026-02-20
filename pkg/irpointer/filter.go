@@ -255,3 +255,35 @@ func (f *TranslateFilter) Apply(frame Frame) Frame {
 	frame.Position = f.Source.Translate(frame.Position, f.Destination, f.Clamp)
 	return frame
 }
+
+type RepeatFilter struct {
+	// input viewpoint
+	Deadzone float64
+
+	position FVec2
+	alive    bool
+}
+
+func (f *RepeatFilter) Apply(frame Frame) Frame {
+	if !frame.Valid {
+		return frame
+	}
+
+	if !f.alive {
+		f.alive = true
+		f.position = frame.Position
+		return frame
+	}
+
+	dx := frame.Position.X - f.position.X
+	dy := frame.Position.Y - f.position.Y
+
+	d := math.Sqrt(square(dx) + square(dy))
+	if d <= f.Deadzone {
+		frame.Valid = false
+		return frame
+	}
+
+	f.position = frame.Position
+	return frame
+}

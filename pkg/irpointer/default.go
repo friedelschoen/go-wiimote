@@ -59,6 +59,12 @@ func NewOneEuroSmoothing() *OneEuroSmoothingFilter {
 	}
 }
 
+func NewRepeatFilter() *RepeatFilter {
+	return &RepeatFilter{
+		Deadzone: 1, // pixels
+	}
+}
+
 func NewSafeTopSensorNormalize() *TranslateFilter {
 	return &TranslateFilter{
 		Source:      FRect{FVec2{-340, -92}, FVec2{340, 290}},

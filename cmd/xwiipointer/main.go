@@ -4,19 +4,30 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/friedelschoen/go-xwiimote"
 	"github.com/friedelschoen/go-xwiimote/pkg/irpointer"
 	"github.com/friedelschoen/go-xwiimote/pkg/vinput"
 )
 
-var ScrollSpeed = flag.Float64("scrollspeed", -0.01, "Set the vertical scrollspeed")
-var HorizScrollSpeed = flag.Float64("hscrollspeed", -0.01, "Set the horizontal scrollspeed")
+var ScrollSpeed = flag.Float64("scrollspeed", 0.01, "Set the vertical scrollspeed")
+var HorizScrollSpeed = flag.Float64("hscrollspeed", 0.01, "Set the horizontal scrollspeed")
 
 func watchDevice(dev *xwiimote.Device) {
 	mouse, err := vinput.CreateMouse("xwiimote-mouse",
 		vinput.Range{Min: -340, Max: 340, Res: 72},
-		vinput.Range{Min: -92, Max: 290, Res: 72})
+		vinput.Range{Min: -92, Max: 290, Res: 72}, []vinput.Key{
+			vinput.ButtonLeft,
+			vinput.ButtonRight,
+			vinput.KeyLeftmeta,
+			vinput.ButtonBack,
+			vinput.ButtonForward,
+			vinput.KeyVolumedown,
+			vinput.KeyVolumeup,
+			vinput.KeyPlaypause,
+			vinput.KeyNext,
+		})
 	if err != nil {
 		log.Fatalf("error: unable to create mouse: %v", err)
 	}
@@ -34,10 +45,33 @@ func watchDevice(dev *xwiimote.Device) {
 		irpointer.NewErrorFilter(),
 		irpointer.NewGlitchFilter(),
 		irpointer.NewOneEuroSmoothing(),
+		irpointer.NewRepeatFilter(),
 	}
 
-	var frame irpointer.Frame
 	var scroll *irpointer.FVec2
+	var frame irpointer.Frame
+	go func() {
+		for {
+			if scroll == nil {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			dx := scroll.X - frame.Position.X
+			dy := scroll.Y - frame.Position.Y
+			if dx > -10 && dx < 10 {
+				dx = 0
+			}
+			if dy > -10 && dy < 10 {
+				dy = 0
+			}
+			scrollx, scrolly := int32(*HorizScrollSpeed*dx), int32(*ScrollSpeed*dy)
+			fmt.Printf("[%v] scroll to (%d %d) at %.2fcm distance\n", frame.Health, scrollx, scrolly, frame.Distance)
+			mouse.Scroll(scrollx, scrolly)
+			time.Sleep(50 * time.Millisecond)
+		}
+	}()
+
 	var lastIR *xwiimote.EventIR
 	var lastAccel *xwiimote.EventAccel
 	var hold bool
@@ -64,7 +98,7 @@ func watchDevice(dev *xwiimote.Device) {
 			case xwiimote.KeyB:
 				mouse.Key(vinput.ButtonRight, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyHome:
-				mouse.Key(vinput.ButtonMiddle, ev.State != xwiimote.StateReleased)
+				mouse.Key(vinput.KeyLeftmeta, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyLeft:
 				mouse.Key(vinput.ButtonBack, ev.State != xwiimote.StateReleased)
 			case xwiimote.KeyRight:
@@ -98,19 +132,7 @@ func watchDevice(dev *xwiimote.Device) {
 		}
 		if frame.Valid && frame.Health >= irpointer.IRGood {
 			x, y := frame.Position.X, frame.Position.Y
-			if scroll != nil {
-				dx := x - scroll.X
-				dy := y - scroll.Y
-				if dx > -10 && dx < 10 {
-					dx = 0
-				}
-				if dy > -10 && dy < 10 {
-					dy = 0
-				}
-
-				fmt.Printf("[%v] scroll to (%.2f %.2f) at %.2fcm distance\n", frame.Health, dx, dy, frame.Distance)
-				mouse.Scroll(int32(*HorizScrollSpeed*dx), int32(*ScrollSpeed*dy))
-			} else {
+			if scroll == nil {
 				fmt.Printf("[%v] pointer at (%.2f %.2f) at %.2fcm distance\n", frame.Health, x, y, frame.Distance)
 				mouse.Set(int32(x), int32(y))
 			}

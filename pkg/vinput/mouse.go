@@ -23,7 +23,7 @@ func (rng Range) empty() bool {
 
 // CreateMouse will create a new mouse input device. A mouse is a device that allows relative input.
 // Relative input means that all changes to the x and y coordinates of the mouse pointer will be
-func CreateMouse(name string, xabs, yabs Range, opts ...UinputOption) (*Mouse, error) {
+func CreateMouse(name string, xabs, yabs Range, buttons []Key, opts ...UinputOption) (*Mouse, error) {
 	construct := defaultUinputConstructor
 	for _, opt := range opts {
 		opt(&construct)
@@ -41,11 +41,11 @@ func CreateMouse(name string, xabs, yabs Range, opts ...UinputOption) (*Mouse, e
 	}
 
 	// register button events
-	for i := KeyReserved; i <= KeyMax; i++ {
-		err = dev.register(uiSetKeyBit, uintptr(i))
+	for _, k := range buttons {
+		err = dev.register(uiSetKeyBit, uintptr(k))
 		if err != nil {
 			dev.Close()
-			return nil, fmt.Errorf("failed to register key number %d: %v", i, err)
+			return nil, fmt.Errorf("failed to register key %v: %v", k, err)
 		}
 	}
 
