@@ -32,7 +32,7 @@ func cError(ret C.int) error {
 func cTimeMake(orig time.Time) C.struct_timeval {
 	var t C.struct_timeval
 	t.tv_sec = C.time_t(orig.Unix())
-	t.tv_usec = C.time_t(orig.UnixMicro())
+	t.tv_usec = C.time_t(orig.Nanosecond() / 1000)
 	return t
 }
 

@@ -27,7 +27,7 @@ func TestCError_Positive(t *testing.T) {
 func testCTimeRoundtrip(t *testing.T, orig time.Time) {
 	next := cTime(cTimeMake(orig))
 
-	if next.Equal(orig) {
+	if next.Sub(orig) > 1*time.Millisecond {
 		t.Errorf("cTime and cTimeMake do not convert equally: expected %v, got %v", orig, next)
 	}
 }
