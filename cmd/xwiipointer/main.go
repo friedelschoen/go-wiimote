@@ -121,7 +121,7 @@ func watchDevice(dev *xwiimote.Device) {
 
 	var lastIR *xwiimote.EventIR
 	var lastAccel *xwiimote.EventAccel
-	var hold bool
+	var hold time.Time
 	for {
 		ev, err := dev.Wait(-1)
 		if err != nil {
@@ -137,7 +137,10 @@ func watchDevice(dev *xwiimote.Device) {
 				break
 			}
 			if ev.Code != xwiimote.KeyDown {
-				hold = ev.State == xwiimote.StatePressed
+				hold = time.Time{}
+				if ev.State == xwiimote.StatePressed {
+					hold = time.Now()
+				}
 			}
 			switch ev.Code {
 			case xwiimote.KeyA:
@@ -171,12 +174,14 @@ func watchDevice(dev *xwiimote.Device) {
 				}
 			}
 		}
-		if lastIR != nil && lastAccel != nil {
+		if lastIR != nil && lastAccel != nil && (hold.IsZero() || time.Since(hold) > 500*time.Millisecond) {
 			frame = pointer.Step(lastIR.Slots, lastAccel.Accel)
-			if hold {
-				frame = holdProcess.Apply(frame)
+			holdframe := holdProcess.Apply(frame)
+			regframe := process.Apply(frame)
+			if !hold.IsZero() {
+				frame = holdframe
 			} else {
-				frame = process.Apply(frame)
+				frame = regframe
 			}
 			lastIR = nil
 			lastAccel = nil
