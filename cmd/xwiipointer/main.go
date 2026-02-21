@@ -37,8 +37,8 @@ func watchDevice(dev *xwiimote.Device) {
 		log.Fatalf("error: unable to open device: %v", err)
 	}
 
-	bat, _ := dev.GetBattery()
-	fmt.Printf("new wiimote at %s with %d%% battery, cap=%v\n", dev.GetSyspath(), bat, dev.Available(&xwiimote.InterfaceIR{}))
+	bat, _ := dev.Battery()
+	fmt.Printf("new wiimote at %s with %d%% battery, cap=%v\n", dev.Syspath(), bat, dev.Available(&xwiimote.InterfaceIR{}))
 
 	pointer := irpointer.NewIRPointer()
 	process := irpointer.FilterChain{
@@ -81,7 +81,7 @@ func watchDevice(dev *xwiimote.Device) {
 				lostcount = 0
 			}
 
-			soc, err := dev.GetBattery()
+			soc, err := dev.Battery()
 			if err != nil {
 				/* assume full */
 				soc = 100

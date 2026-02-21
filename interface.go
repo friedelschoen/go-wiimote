@@ -3,6 +3,7 @@ package xwiimote
 // #include "input-defs.h"
 import "C"
 import (
+	"errors"
 	"io"
 	"os"
 	"syscall"
@@ -99,10 +100,10 @@ func (iff *commonInterface) close() error {
 		return nil
 	}
 	if err := syscall.EpollCtl(iff.dev.efd, syscall.EPOLL_CTL_DEL, int(iff.file.Fd()), nil); err != nil {
-		return nil
+		return err
 	}
 	if err := iff.file.Close(); err != nil {
-		return nil
+		return err
 	}
 	iff.file = nil
 	return nil
@@ -322,6 +323,10 @@ func (iface *InterfaceIR) acceptEvent(ts time.Time, event, code uint16, value in
 type InterfaceMotionPlus struct {
 	commonInterface
 
+	//  motion plus normalization
+	normalizer     Vec3 // event_abs
+	normaizeFactor int32
+
 	speed Vec3
 }
 
@@ -329,25 +334,59 @@ func (InterfaceMotionPlus) Name() string {
 	return "Nintendo Wii Remote Motion Plus"
 }
 
+// SetMPNormalization sets Motion-Plus normalization and calibration values. The Motion-Plus sensor is very
+// sensitive and may return really crappy values. This interfaces allows to
+// apply 3 absolute offsets x, y and z which are subtracted from any MP data
+// before it is returned to the application. That is, if you set these values
+// to 0, this has no effect (which is also the initial state).
+//
+// The calibration factor is used to perform runtime calibration. If
+// it is 0 (the initial state), no runtime calibration is performed. Otherwise,
+// the factor is used to re-calibrate the zero-point of MP data depending on MP
+// input. This is an angoing calibration which modifies the internal state of
+// the x, y and z values.
+func (iface *InterfaceMotionPlus) SetMPNormalization(x, y, z, factor int32) {
+	iface.normalizer.X = x * 100
+	iface.normalizer.Y = y * 100
+	iface.normalizer.Z = z * 100
+	iface.normaizeFactor = factor
+}
+
+// MPNormalization reads the Motion-Plus normalization and calibration values. Please see
+// SetMPNormalization() how this is handled.
+//
+// Note that if the calibration factor is not 0, the normalization values may
+// change depending on incoming MP data. Therefore, the data read via this
+// function may differ from the values that you wrote to previously. However,
+// apart from applied calibration, these value are the same as were set
+// previously via SetMPNormalization() and you can feed them back
+// in later.
+func (iface *InterfaceMotionPlus) MPNormalization() (x, y, z, factor int32) {
+	return iface.normalizer.X / 100,
+		iface.normalizer.Y / 100,
+		iface.normalizer.Z / 100,
+		iface.normaizeFactor
+}
+
 func (iface *InterfaceMotionPlus) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
 	if event == C.EV_SYN {
-		iface.speed.X -= iface.dev.mpNormalizer.X / 100
-		iface.speed.Y -= iface.dev.mpNormalizer.Y / 100
-		iface.speed.Z -= iface.dev.mpNormalizer.Z / 100
+		iface.speed.X -= iface.normalizer.X / 100
+		iface.speed.Y -= iface.normalizer.Y / 100
+		iface.speed.Z -= iface.normalizer.Z / 100
 		if iface.speed.X > 0 {
-			iface.dev.mpNormalizer.X += iface.dev.mpNormaizeFactor
+			iface.normalizer.X += iface.normaizeFactor
 		} else {
-			iface.dev.mpNormalizer.X -= iface.dev.mpNormaizeFactor
+			iface.normalizer.X -= iface.normaizeFactor
 		}
 		if iface.speed.Y > 0 {
-			iface.dev.mpNormalizer.Y += iface.dev.mpNormaizeFactor
+			iface.normalizer.Y += iface.normaizeFactor
 		} else {
-			iface.dev.mpNormalizer.Y -= iface.dev.mpNormaizeFactor
+			iface.normalizer.Y -= iface.normaizeFactor
 		}
 		if iface.speed.Z > 0 {
-			iface.dev.mpNormalizer.Z += iface.dev.mpNormaizeFactor
+			iface.normalizer.Z += iface.normaizeFactor
 		} else {
-			iface.dev.mpNormalizer.Z -= iface.dev.mpNormaizeFactor
+			iface.normalizer.Z -= iface.normaizeFactor
 		}
 
 		var ev EventMotionPlus
@@ -832,7 +871,7 @@ func readEvent(fd io.Reader) (*C.struct_input_event, error) {
 		return nil, err
 	}
 	if n == 0 {
-		return nil, nil
+		return nil, io.EOF
 	}
 	if n != int(unsafe.Sizeof(ev)) {
 		return nil, io.ErrShortBuffer
@@ -843,6 +882,9 @@ func readEvent(fd io.Reader) (*C.struct_input_event, error) {
 func dispatchEvent(iff Interface) (Event, error) {
 	for {
 		input, err := readEvent(iff.fd())
+		if errors.Is(err, io.EOF) {
+			return nil, nil
+		}
 		if err != nil {
 			iff.Device().CloseInterfaces(iff)
 			return &EventWatch{commonEvent{iff, time.Now()}}, nil

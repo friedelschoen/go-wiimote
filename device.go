@@ -50,10 +50,6 @@ type Device struct {
 	batteryAttr string
 	//  led brightness attributes
 	ledAttrs [4]string
-
-	//  motion plus normalization
-	mpNormalizer     Vec3 // event_abs
-	mpNormaizeFactor int32
 }
 
 // NewDevice creates a new device object. No interfaces on the device are opened by
@@ -97,7 +93,7 @@ func newDeviceFromUdev(dev *udev.Device) (*Device, error) {
 		return nil, err
 	}
 
-	runtime.AddCleanup(&d, func(fd int) { syscall.Close(d.efd) }, d.efd)
+	runtime.AddCleanup(&d, func(fd int) { syscall.Close(fd) }, d.efd)
 
 	return &d, nil
 }
@@ -209,10 +205,10 @@ func (dev *Device) CloseInterfaces(ifaces ...Interface) error {
 	return dev.readNodes()
 }
 
-// GetSyspath returns the sysfs path of the underlying device. It is not neccesarily
+// Syspath returns the sysfs path of the underlying device. It is not neccesarily
 // the same as the one during NewDevice. However, it is guaranteed to
 // point at the same device (symlinks may be resolved).
-func (dev *Device) GetSyspath() string {
+func (dev *Device) Syspath() string {
 	return dev.dev.Syspath()
 }
 
@@ -345,10 +341,10 @@ func (dev *Device) Poll() (Event, bool, error) {
 	return nil, false, ErrPollAgain
 }
 
-// GetLED reads the LED state for the given LED.
+// LED reads the LED state for the given LED.
 //
 // LEDs are a static interface that does not have to be opened first.
-func (dev *Device) GetLED() (result Led, _ error) {
+func (dev *Device) LED() (result Led, _ error) {
 	for i := range 4 {
 		cont, err := os.ReadFile(dev.ledAttrs[i])
 		if err != nil {
@@ -379,82 +375,48 @@ func (dev *Device) SetLED(leds Led) error {
 	return nil
 }
 
-// GetBattery reads the current battery capacity. The capacity is represented as percentage, thus the return value is an integer between 0 and 100.
+// Battery reads the current battery capacity. The capacity is represented as percentage, thus the return value is an integer between 0 and 100.
 //
 // Batteries are a static interface that does not have to be opened first.
-func (dev *Device) GetBattery() (uint, error) {
+func (dev *Device) Battery() (uint, error) {
 	cont, err := os.ReadFile(dev.batteryAttr)
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	cap, err := strconv.Atoi(strings.TrimSpace(string(cont)))
 	return uint(cap), err
 }
 
-// GetDevType returns the device type. If the device type cannot be determined,
+// DevType returns the device type. If the device type cannot be determined,
 // it returns "unknown" and the corresponding error.
 //
 // This is a static interface that does not have to be opened first.
-func (dev *Device) GetDevType() (string, error) {
+func (dev *Device) DevType() (string, error) {
 	cont, err := os.ReadFile(dev.devtypeAttr)
 	return strings.TrimSpace(string(cont)), err
 }
 
-// GetExtension returns the extension type. If no extension is connected or the
+// Extension returns the extension type. If no extension is connected or the
 // extension cannot be determined, it returns a string "none" and the corresponding error.
 //
 // This is a static interface that does not have to be opened first.
-func (dev *Device) GetExtension() (string, error) {
+func (dev *Device) Extension() (string, error) {
 	cont, err := os.ReadFile(dev.extensionAttr)
 	return strings.TrimSpace(string(cont)), err
-}
-
-// SetMPNormalization sets Motion-Plus normalization and calibration values. The Motion-Plus sensor is very
-// sensitive and may return really crappy values. This interfaces allows to
-// apply 3 absolute offsets x, y and z which are subtracted from any MP data
-// before it is returned to the application. That is, if you set these values
-// to 0, this has no effect (which is also the initial state).
-//
-// The calibration factor is used to perform runtime calibration. If
-// it is 0 (the initial state), no runtime calibration is performed. Otherwise,
-// the factor is used to re-calibrate the zero-point of MP data depending on MP
-// input. This is an angoing calibration which modifies the internal state of
-// the x, y and z values.
-func (dev *Device) SetMPNormalization(x, y, z, factor int32) {
-	dev.mpNormalizer.X = x * 100
-	dev.mpNormalizer.Y = y * 100
-	dev.mpNormalizer.Z = z * 100
-	dev.mpNormaizeFactor = factor
-}
-
-// GetMPNormalization reads the Motion-Plus normalization and calibration values. Please see
-// SetMPNormalization() how this is handled.
-//
-// Note that if the calibration factor is not 0, the normalization values may
-// change depending on incoming MP data. Therefore, the data read via this
-// function may differ from the values that you wrote to previously. However,
-// apart from applied calibration, these value are the same as were set
-// previously via SetMPNormalization() and you can feed them back
-// in later.
-func (dev *Device) GetMPNormalization() (x, y, z, factor int32) {
-	return dev.mpNormalizer.X / 100,
-		dev.mpNormalizer.Y / 100,
-		dev.mpNormalizer.Z / 100,
-		dev.mpNormaizeFactor
 }
 
 func (dev *Device) String() string {
 	var w strings.Builder
 	w.WriteString("xwiimote-device ")
-	devtype, _ := dev.GetDevType()
+	devtype, _ := dev.DevType()
 	w.WriteString(devtype)
-	ext, _ := dev.GetExtension()
+	ext, _ := dev.Extension()
 	if ext != "none" && ext != "" {
 		w.WriteString(" with ")
 		w.WriteString(ext)
 	}
 	w.WriteString(" at ")
-	w.WriteString(dev.GetSyspath())
+	w.WriteString(dev.Syspath())
 	return w.String()
 }
