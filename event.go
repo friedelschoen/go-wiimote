@@ -385,7 +385,7 @@ func (dev *Device) dispatchEvent(evFd int32, pollEv uint32) (Event, error) {
 		return dev.readUmon(pollEv)
 	}
 	for _, iff := range dev.ifs {
-		if iff.fd().Fd() != uintptr(evFd) {
+		if int32(iff.fd()) != evFd {
 			continue
 		}
 		return dispatchEvent(iff)

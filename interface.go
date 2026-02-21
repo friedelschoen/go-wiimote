@@ -3,7 +3,6 @@ package xwiimote
 // #include "input-defs.h"
 import "C"
 import (
-	"errors"
 	"io"
 	"os"
 	"syscall"
@@ -29,7 +28,7 @@ type Interface interface {
 	// calls to Open() and Close(). See the EventWatch event for more information.
 	Opened() bool
 
-	fd() *os.File
+	fd() SysFile
 	open(dev *Device, node string, wr bool) error
 	close() error
 	acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error)
@@ -40,8 +39,10 @@ type commonInterface struct {
 	dev *Device
 	//iface.device node as /dev/input/eventX or ""
 	node string
-	// Open file or nil
-	file *os.File
+	// wether file is opened
+	opened bool
+	// Open file
+	file SysFile
 }
 
 // Node is an absolute path which points to the sys-directory. When opened, a node is bound to this device.
@@ -52,7 +53,7 @@ func (iface *commonInterface) Node() string {
 func (iface *commonInterface) Device() *Device {
 	return iface.dev
 }
-func (iface *commonInterface) fd() *os.File {
+func (iface *commonInterface) fd() SysFile {
 	return iface.file
 }
 
@@ -63,11 +64,11 @@ func (iface *commonInterface) fd() *os.File {
 // You will get notified whenever this bitmask changes, except on explicit
 // calls to Open() and Close(). See the EventWatch event for more information.
 func (iface *commonInterface) Opened() bool {
-	return iface.file != nil
+	return iface.opened
 }
 
 func (iff *commonInterface) open(dev *Device, node string, wr bool) error {
-	if iff.dev != nil && iff.node != "" && iff.file != nil {
+	if iff.dev != nil && iff.node != "" && iff.opened {
 		return nil
 	}
 
@@ -76,36 +77,39 @@ func (iff *commonInterface) open(dev *Device, node string, wr bool) error {
 
 	flags := syscall.O_NONBLOCK | syscall.O_CLOEXEC
 	if wr {
-		flags |= os.O_RDWR
+		flags |= syscall.O_RDWR
 	}
-	fd, err := os.OpenFile(iff.Node(), flags, 0)
+	fd, err := syscall.Open(iff.Node(), flags, 0)
 	if err != nil {
 		return err
 	}
+	file := SysFile(fd)
 
 	var ep syscall.EpollEvent
 	ep.Events = syscall.EPOLLIN
-	ep.Fd = int32(fd.Fd())
-	if err := syscall.EpollCtl(iff.dev.efd, syscall.EPOLL_CTL_ADD, int(fd.Fd()), &ep); err != nil {
-		fd.Close()
+	ep.Fd = int32(fd)
+	if err := syscall.EpollCtl(iff.dev.efd, syscall.EPOLL_CTL_ADD, int(fd), &ep); err != nil {
+		file.Close()
 		return err
 	}
 
-	iff.file = fd
+	iff.opened = true
+	iff.file = file
 	return nil
 }
 
 func (iff *commonInterface) close() error {
-	if iff.file == nil {
+	if !iff.opened {
 		return nil
 	}
-	if err := syscall.EpollCtl(iff.dev.efd, syscall.EPOLL_CTL_DEL, int(iff.file.Fd()), nil); err != nil {
+	if err := syscall.EpollCtl(iff.dev.efd, syscall.EPOLL_CTL_DEL, int(iff.file), nil); err != nil {
 		return err
 	}
 	if err := iff.file.Close(); err != nil {
 		return err
 	}
-	iff.file = nil
+	iff.opened = false
+	iff.file = 0
 	return nil
 }
 
@@ -136,7 +140,7 @@ func (iface *rumbleInterface) uploadRumble() error {
 	rmb := (*C.struct_ff_rumble_effect)(unsafe.Pointer(&effect.u))
 	rmb.strong_magnitude = 1
 
-	if err := ioctl(iface.file.Fd(), C.EVIOCSFF, uintptr(unsafe.Pointer(&effect))); err != nil {
+	if err := ioctl(uintptr(iface.file), C.EVIOCSFF, uintptr(unsafe.Pointer(&effect))); err != nil {
 		return err
 	}
 	iface.rumbleValid = true
@@ -154,7 +158,7 @@ func (iff *rumbleInterface) close() error {
 //
 // This requires the core-interface to be opened in writable mode.
 func (dev *rumbleInterface) Rumble(state bool) error {
-	if dev.file == nil || !dev.rumbleValid {
+	if !dev.opened || !dev.rumbleValid {
 		return os.ErrInvalid
 	}
 
@@ -188,11 +192,11 @@ func (InterfaceCore) Name() string {
 
 func (iface *InterfaceCore) acceptEvent(ts time.Time, event, code uint16, value int32) (Event, error) {
 	if event != C.EV_KEY {
-		return nil, syscall.EINVAL
+		return nil, nil
 	}
 
 	if value < 0 || value > 2 {
-		return nil, syscall.EINVAL
+		return nil, nil
 	}
 
 	var key Key
@@ -220,7 +224,7 @@ func (iface *InterfaceCore) acceptEvent(ts time.Time, event, code uint16, value 
 	case C.BTN_MODE:
 		key = KeyHome
 	default:
-		return nil, syscall.EINVAL
+		return nil, nil
 	}
 
 	var ev EventKey
@@ -251,7 +255,7 @@ func (iface *InterfaceAccel) acceptEvent(ts time.Time, event, code uint16, value
 	}
 
 	if event != C.EV_ABS {
-		return nil, syscall.EINVAL
+		return nil, nil
 	}
 
 	switch code {
@@ -296,7 +300,7 @@ func (iface *InterfaceIR) acceptEvent(ts time.Time, event, code uint16, value in
 	}
 
 	if event != C.EV_ABS {
-		return nil, syscall.EINVAL
+		return nil, nil
 	}
 
 	switch code {
@@ -397,7 +401,7 @@ func (iface *InterfaceMotionPlus) acceptEvent(ts time.Time, event, code uint16, 
 	}
 
 	if event != C.EV_ABS {
-		return nil, syscall.EINVAL
+		return nil, nil
 	}
 
 	switch code {
@@ -427,7 +431,7 @@ func (iface *InterfaceNunchuck) acceptEvent(ts time.Time, event, code uint16, va
 	switch event {
 	case C.EV_KEY:
 		if value < 0 || value > 2 {
-			return nil, syscall.EINVAL
+			return nil, nil
 		}
 		var key Key
 		switch code {
@@ -436,7 +440,7 @@ func (iface *InterfaceNunchuck) acceptEvent(ts time.Time, event, code uint16, va
 		case C.BTN_Z:
 			key = KeyZ
 		default:
-			return nil, syscall.EINVAL
+			return nil, nil
 		}
 
 		var ev EventNunchukKey
@@ -467,7 +471,7 @@ func (iface *InterfaceNunchuck) acceptEvent(ts time.Time, event, code uint16, va
 		return &ev, nil
 	}
 
-	return nil, syscall.EINVAL
+	return nil, nil
 }
 
 type InterfaceClassicController struct {
@@ -487,7 +491,7 @@ func (iface *InterfaceClassicController) acceptEvent(ts time.Time, event, code u
 	switch event {
 	case C.EV_KEY:
 		if value < 0 || value > 2 {
-			return nil, syscall.EINVAL
+			return nil, nil
 		}
 
 		var key Key
@@ -862,16 +866,16 @@ func InterfaceFromName(name string) Interface {
 	}
 }
 
-func readEvent(fd io.Reader) (*C.struct_input_event, error) {
+func readEvent(fd SysFile) (*C.struct_input_event, error) {
 	var ev C.struct_input_event
 	buf := unsafe.Slice((*byte)(unsafe.Pointer(&ev)), unsafe.Sizeof(ev))
 
 	n, err := fd.Read(buf)
+	if err == syscall.EAGAIN {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
-	}
-	if n == 0 {
-		return nil, io.EOF
 	}
 	if n != int(unsafe.Sizeof(ev)) {
 		return nil, io.ErrShortBuffer
@@ -882,9 +886,6 @@ func readEvent(fd io.Reader) (*C.struct_input_event, error) {
 func dispatchEvent(iff Interface) (Event, error) {
 	for {
 		input, err := readEvent(iff.fd())
-		if errors.Is(err, io.EOF) {
-			return nil, nil
-		}
 		if err != nil {
 			iff.Device().CloseInterfaces(iff)
 			return &EventWatch{commonEvent{iff, time.Now()}}, nil
