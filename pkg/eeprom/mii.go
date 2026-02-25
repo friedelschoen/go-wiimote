@@ -1,13 +1,14 @@
-package miidata
+package eeprom
 
 import (
 	"encoding/binary"
+	"iter"
 	"unicode/utf16"
 )
 
 const (
 	slotOffset = 0x08
-	slotSize   = 0x4A
+	slotSize   = 0x4a
 )
 
 type Mii struct {
@@ -101,7 +102,7 @@ func utf16name(payload []byte) string {
 }
 
 func DecodeMii(payload []byte) (out Mii) {
-	if len(payload) < 0x4A {
+	if len(payload) < 0x4a {
 		return out
 	}
 
@@ -113,9 +114,9 @@ func DecodeMii(payload []byte) (out Mii) {
 	w0 := u16(0x00)
 	out.Invalid = ((w0 >> 15) & 0x1) != 0
 	out.Female = ((w0 >> 14) & 0x1) != 0
-	out.BirthMonth = (w0 >> 10) & 0xF
-	out.BirthDay = (w0 >> 5) & 0x1F
-	out.FavColor = (w0 >> 1) & 0xF
+	out.BirthMonth = (w0 >> 10) & 0xf
+	out.BirthDay = (w0 >> 5) & 0x1f
+	out.FavColor = (w0 >> 1) & 0xf
 	out.IsFavorite = (w0 & 0x1) != 0
 
 	/* addr 0x02-0x15 */
@@ -125,20 +126,20 @@ func DecodeMii(payload []byte) (out Mii) {
 	out.Height = int(payload[0x16])
 	out.Weight = int(payload[0x17])
 
-	/* addr 0x18-0x1B */
+	/* addr 0x18-0x1b */
 	out.ID = u32(0x18)
 
-	/* addr 0x1C-0x1F */
-	out.SystemID0 = int(payload[0x1C])
-	out.SystemID1 = int(payload[0x1D])
-	out.SystemID2 = int(payload[0x1E])
-	out.SystemID3 = int(payload[0x1F])
+	/* addr 0x1c-0x1f */
+	out.SystemID0 = int(payload[0x1c])
+	out.SystemID1 = int(payload[0x1d])
+	out.SystemID2 = int(payload[0x1e])
+	out.SystemID3 = int(payload[0x1f])
 
 	/* addr 0x20-0x21 */
 	w1 := u16(0x20)
 	out.FaceShape = (w1 >> 13) & 0x7
 	out.SkinColor = (w1 >> 10) & 0x7
-	out.FacialFeature = (w1 >> 6) & 0xF
+	out.FacialFeature = (w1 >> 6) & 0xf
 	// unknown0: (w1 >> 3) & 0x7
 	out.MingleOff = ((w1 >> 2) & 0x1) != 0
 	// unknown1: (w1 >> 1) & 0x1
@@ -146,70 +147,70 @@ func DecodeMii(payload []byte) (out Mii) {
 
 	/* addr 0x22-0x23 */
 	w2 := u16(0x22)
-	out.HairType = (w2 >> 9) & 0x7F
+	out.HairType = (w2 >> 9) & 0x7f
 	out.HairColor = (w2 >> 6) & 0x7
 	out.HairPart = (w2 >> 5) & 0x1
-	// unknown2: w2 & 0x1F
+	// unknown2: w2 & 0x1f
 
 	/* addr 0x24-0x27 */
 	d0 := u32(0x24)
-	out.EyebrowType = (d0 >> 27) & 0x1F
+	out.EyebrowType = (d0 >> 27) & 0x1f
 	// unknown3: (d0 >> 26) & 0x1
-	out.EyebrowRotation = (d0 >> 22) & 0xF
-	// unknown4: (d0 >> 16) & 0x3F
+	out.EyebrowRotation = (d0 >> 22) & 0xf
+	// unknown4: (d0 >> 16) & 0x3f
 	out.EyebrowColor = (d0 >> 13) & 0x7
-	out.EyebrowSize = (d0 >> 9) & 0xF
-	out.EyebrowVertPos = (d0 >> 4) & 0x1F
-	out.EyebrowHorizSpacing = d0 & 0xF
+	out.EyebrowSize = (d0 >> 9) & 0xf
+	out.EyebrowVertPos = (d0 >> 4) & 0x1f
+	out.EyebrowHorizSpacing = d0 & 0xf
 
-	/* addr 0x28-0x2B */
+	/* addr 0x28-0x2b */
 	d1 := u32(0x28)
-	out.EyeType = (d1 >> 26) & 0x3F
+	out.EyeType = (d1 >> 26) & 0x3f
 	// unknown5: (d1 >> 24) & 0x3
 	out.EyeRotation = (d1 >> 21) & 0x7
-	out.EyeVertPos = (d1 >> 16) & 0x1F
+	out.EyeVertPos = (d1 >> 16) & 0x1f
 	out.EyeColor = (d1 >> 13) & 0x7
 	// unknown6: (d1 >> 12) & 0x1
 	out.EyeSize = (d1 >> 9) & 0x7
-	out.EyeHorizSpacing = (d1 >> 5) & 0xF
-	// unknown7: d1 & 0x1F
+	out.EyeHorizSpacing = (d1 >> 5) & 0xf
+	// unknown7: d1 & 0x1f
 
-	/* addr 0x2C-0x2D */
-	w3 := u16(0x2C)
-	out.NoseType = (w3 >> 12) & 0xF
-	out.NoseSize = (w3 >> 8) & 0xF
-	out.NoseVertPos = (w3 >> 3) & 0x1F
+	/* addr 0x2c-0x2d */
+	w3 := u16(0x2c)
+	out.NoseType = (w3 >> 12) & 0xf
+	out.NoseSize = (w3 >> 8) & 0xf
+	out.NoseVertPos = (w3 >> 3) & 0x1f
 	// unknown8: w3 & 0x7
 
-	/* addr 0x2E-0x2F */
-	w4 := u16(0x2E)
-	out.LipType = (w4 >> 11) & 0x1F
+	/* addr 0x2e-0x2f */
+	w4 := u16(0x2e)
+	out.LipType = (w4 >> 11) & 0x1f
 	out.LipColor = (w4 >> 9) & 0x3
-	out.LipSize = (w4 >> 5) & 0xF
-	out.LipVertPos = w4 & 0x1F
+	out.LipSize = (w4 >> 5) & 0xf
+	out.LipVertPos = w4 & 0x1f
 
 	/* addr 0x30-0x31 */
 	w5 := u16(0x30)
-	out.GlassesType = (w5 >> 12) & 0xF
+	out.GlassesType = (w5 >> 12) & 0xf
 	out.GlassesColor = (w5 >> 9) & 0x7
 	// unknown9: (w5 >> 8) & 0x1
 	out.GlassesSize = (w5 >> 5) & 0x7
-	out.GlassesVertPos = w5 & 0x1F
+	out.GlassesVertPos = w5 & 0x1f
 
 	/* addr 0x32-0x33 */
 	w6 := u16(0x32)
 	out.MustacheType = (w6 >> 14) & 0x3
 	out.BeardType = (w6 >> 12) & 0x3
 	out.FacialHairColor = (w6 >> 9) & 0x7
-	out.MustacheSize = (w6 >> 5) & 0xF
-	out.MustacheVertPos = w6 & 0x1F
+	out.MustacheSize = (w6 >> 5) & 0xf
+	out.MustacheVertPos = w6 & 0x1f
 
 	/* addr 0x34-0x35 */
 	w7 := u16(0x34)
 	out.MoleOn = ((w7 >> 15) & 0x1) != 0
-	out.MoleSize = (w7 >> 11) & 0xF
-	out.MoleVertPos = (w7 >> 6) & 0x1F
-	out.MoleHorizPos = (w7 >> 1) & 0x1F
+	out.MoleSize = (w7 >> 11) & 0xf
+	out.MoleVertPos = (w7 >> 6) & 0x1f
+	out.MoleHorizPos = (w7 >> 1) & 0x1f
 	// unknown: w7 & 0x1
 
 	/* addr 0x36-0x3f */
@@ -218,17 +219,35 @@ func DecodeMii(payload []byte) (out Mii) {
 	return out
 }
 
-func DecodeBlock(block []byte) []Mii {
-	parade := binary.BigEndian.Uint16(block[4:6])
-	var result [10]Mii
-	var n int
-	for i := range result {
-		result[n] = DecodeMii(block[slotOffset+i*slotSize : slotOffset+(i+1)*slotSize])
-		if result[n].Name == "" {
-			continue
-		}
-		result[n].ParadeMii = parade&(1<<i) != 0
-		n++
+type MiiBlock [752]byte
+
+func (b MiiBlock) ParadeMask() uint16 {
+	if len(b) < 6 {
+		return 0
 	}
-	return result[:n]
+	return binary.BigEndian.Uint16(b[4:6])
+}
+
+func (b MiiBlock) IsParadeMii(i int) bool {
+	if i < 0 || i >= 10 {
+		return false
+	}
+	return (b.ParadeMask() & (1 << uint(i))) != 0
+}
+
+func (b MiiBlock) MiiSlot(i int) []byte {
+	if i >= 10 {
+		return nil
+	}
+	return b[slotOffset+i*slotSize : slotOffset+(i+1)*slotSize]
+}
+
+func (b MiiBlock) MiiSlotSeq() iter.Seq2[[]byte, bool] {
+	return func(yield func([]byte, bool) bool) {
+		for i := range 10 {
+			if !yield(b.MiiSlot(i), b.IsParadeMii(i)) {
+				return
+			}
+		}
+	}
 }
