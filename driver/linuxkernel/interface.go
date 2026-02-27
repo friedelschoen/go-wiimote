@@ -1,4 +1,4 @@
-package linuxhid
+package linuxkernel
 
 // #include "input-defs.h"
 import "C"

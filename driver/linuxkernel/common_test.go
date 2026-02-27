@@ -1,4 +1,4 @@
-package linuxhid
+package linuxkernel
 
 import (
 	"testing"

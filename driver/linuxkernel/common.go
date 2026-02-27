@@ -1,4 +1,4 @@
-package linuxhid
+package linuxkernel
 
 // #include <string.h>
 // #include <stdlib.h>
