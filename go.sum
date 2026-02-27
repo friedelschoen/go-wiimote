@@ -1,2 +1,4 @@
+github.com/friedelschoen/go-uinput v0.1.0 h1:+DKc+xp4BaNNo9jJwXg8er16bs0CakIP+97Cfuj3nAI=
+github.com/friedelschoen/go-uinput v0.1.0/go.mod h1:gYPoa2MbWjVXUOkfyZK3QoSqwm3cH/S3j1EqoVEPDkQ=
 golang.org/x/sys v0.38.0 h1:3yZWxaJjBmCWXqhN1qh02AkOnCQ1poK6oF+a7xWL6Gc=
 golang.org/x/sys v0.38.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=

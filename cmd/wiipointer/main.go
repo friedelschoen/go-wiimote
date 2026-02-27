@@ -6,11 +6,11 @@ import (
 	"log"
 	"time"
 
+	"github.com/friedelschoen/go-uinput"
 	"github.com/friedelschoen/go-wiimote"
 	"github.com/friedelschoen/go-wiimote/driver"
 	"github.com/friedelschoen/go-wiimote/pkg/discover"
 	"github.com/friedelschoen/go-wiimote/pkg/irpointer"
-	"github.com/friedelschoen/go-wiimote/pkg/vinput"
 )
 
 var ScrollSpeed = flag.Float64("scrollspeed", 0.01, "Set the vertical scrollspeed")
@@ -20,18 +20,18 @@ func watchDevice(dev wiimote.Device) {
 	bat, _ := dev.Battery()
 	fmt.Printf("new wiimote at %s with %d%% battery, cap=%v\n", dev.Syspath(), bat, dev.Available(wiimote.InterfaceIR))
 
-	mouse, err := vinput.CreateMouse("wiimote-mouse",
-		vinput.Range{Min: -340, Max: 340, Res: 72},
-		vinput.Range{Min: -92, Max: 290, Res: 72}, []vinput.Key{
-			vinput.ButtonLeft,
-			vinput.ButtonRight,
-			vinput.KeyLeftmeta,
-			vinput.ButtonBack,
-			vinput.ButtonForward,
-			vinput.KeyVolumedown,
-			vinput.KeyVolumeup,
-			vinput.KeyPlaypause,
-			vinput.KeyNext,
+	mouse, err := uinput.CreateMouse("wiimote-mouse",
+		uinput.Range{Min: -340, Max: 340, Res: 72},
+		uinput.Range{Min: -92, Max: 290, Res: 72}, []uinput.Key{
+			uinput.ButtonLeft,
+			uinput.ButtonRight,
+			uinput.KeyLeftmeta,
+			uinput.ButtonBack,
+			uinput.ButtonForward,
+			uinput.KeyVolumedown,
+			uinput.KeyVolumeup,
+			uinput.KeyPlaypause,
+			uinput.KeyNext,
 		})
 	if err != nil {
 		log.Fatalf("error: unable to create mouse: %v", err)
@@ -146,23 +146,23 @@ func watchDevice(dev wiimote.Device) {
 			}
 			switch ev.Code {
 			case wiimote.KeyA:
-				mouse.Key(vinput.ButtonLeft, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.ButtonLeft, ev.State != wiimote.StateReleased)
 			case wiimote.KeyB:
-				mouse.Key(vinput.ButtonRight, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.ButtonRight, ev.State != wiimote.StateReleased)
 			case wiimote.KeyHome:
-				mouse.Key(vinput.KeyLeftmeta, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyLeftmeta, ev.State != wiimote.StateReleased)
 			case wiimote.KeyLeft:
-				mouse.Key(vinput.ButtonBack, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.ButtonBack, ev.State != wiimote.StateReleased)
 			case wiimote.KeyRight:
-				mouse.Key(vinput.ButtonForward, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.ButtonForward, ev.State != wiimote.StateReleased)
 			case wiimote.KeyMinus:
-				mouse.Key(vinput.KeyVolumedown, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyVolumedown, ev.State != wiimote.StateReleased)
 			case wiimote.KeyPlus:
-				mouse.Key(vinput.KeyVolumeup, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyVolumeup, ev.State != wiimote.StateReleased)
 			case wiimote.KeyTwo:
-				mouse.Key(vinput.KeyPlaypause, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyPlaypause, ev.State != wiimote.StateReleased)
 			case wiimote.KeyOne:
-				mouse.Key(vinput.KeyNext, ev.State != wiimote.StateReleased)
+				mouse.Key(uinput.KeyNext, ev.State != wiimote.StateReleased)
 			case wiimote.KeyDown:
 				if ev.State == wiimote.StatePressed {
 					if frame.Valid {

@@ -10,18 +10,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/friedelschoen/go-uinput"
 	"github.com/friedelschoen/go-wiimote"
 	"github.com/friedelschoen/go-wiimote/driver"
 	"github.com/friedelschoen/go-wiimote/pkg/discover"
-	"github.com/friedelschoen/go-wiimote/pkg/vinput"
 )
 
 var (
 	kbname = flag.String("name", "wiimote-virtual", "Name to use")
 )
 
-func loadMapping(r io.Reader) map[wiimote.Key]vinput.Key {
-	mapping := make(map[wiimote.Key]vinput.Key)
+func loadMapping(r io.Reader) map[wiimote.Key]uinput.Key {
+	mapping := make(map[wiimote.Key]uinput.Key)
 	scan := bufio.NewScanner(r)
 	for scan.Scan() {
 		line := scan.Text()
@@ -35,7 +35,7 @@ func loadMapping(r io.Reader) map[wiimote.Key]vinput.Key {
 			fmt.Fprintf(os.Stderr, "error: unknown button: %s\n", wiibuttonstr)
 			continue
 		}
-		realkey, ok := vinput.LookupKey(strings.TrimSpace(realkeystr))
+		realkey, ok := uinput.LookupKey(strings.TrimSpace(realkeystr))
 		if !ok {
 			fmt.Fprintf(os.Stderr, "error: unknown key: %s\n", realkeystr)
 			continue
@@ -45,14 +45,14 @@ func loadMapping(r io.Reader) map[wiimote.Key]vinput.Key {
 	return mapping
 }
 
-func watchDevice(dev wiimote.Device, mapping map[wiimote.Key]vinput.Key) {
+func watchDevice(dev wiimote.Device, mapping map[wiimote.Key]uinput.Key) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
 	if err := dev.OpenInterfaces(wiimote.InterfaceCore, true); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
-	kb, err := vinput.CreateKeyboard(*kbname)
+	kb, err := uinput.CreateKeyboard(*kbname)
 	if err != nil {
 		panic(err)
 	}

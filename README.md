@@ -10,7 +10,7 @@ wiimote
 │   ├── irpointer       -- algorithm to convert IR events to a pointer on a screen
 │   ├── udev            -- bindings to libudev
 │   │   └── sequences   -- utilities for iter.Seq (like slices, maps)
-│   └── vinput          -- library to create a virtual input device using Linux' uinput
+│   └── uinput          -- library to create a virtual input device using Linux' uinput
 └── cmd
     ├── wiimap         -- utility to map wiimote buttons to physical keys.
     └── wiipointer     -- utility to use wiimote as mouse using IR-tracking.
