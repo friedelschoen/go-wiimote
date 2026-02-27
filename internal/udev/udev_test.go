@@ -6,14 +6,14 @@ import (
 )
 
 func ExampleNewDeviceFromDevnum() {
-	d := NewDeviceFromDevnum('c', MkDev(1, 8))
+	d := NewDeviceFromDevnum('c', mkDev(1, 8))
 	fmt.Println(d.Syspath())
 	// Output:
 	// /sys/devices/virtual/mem/random
 }
 
 func TestNewDeviceFromDevnum(t *testing.T) {
-	d := NewDeviceFromDevnum('c', MkDev(1, 8))
+	d := NewDeviceFromDevnum('c', mkDev(1, 8))
 	if d.Devnum().Major() != 1 {
 		t.Fail()
 	}
@@ -86,11 +86,11 @@ func TestNewDeviceFromDeviceID(t *testing.T) {
 }
 
 func ExampleNewMonitorFromNetlink() {
-	_ = NewMonitorFromNetlink("udev")
+	_ = NewMonitorFromNetlink(MonitorUdev)
 }
 
 func TestNewMonitorFromNetlink(t *testing.T) {
-	_ = NewMonitorFromNetlink("udev")
+	_ = NewMonitorFromNetlink(MonitorUdev)
 }
 
 func ExampleNewEnumerate() {

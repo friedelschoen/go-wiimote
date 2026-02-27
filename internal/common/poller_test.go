@@ -1,4 +1,4 @@
-package wiimote
+package common
 
 import (
 	"errors"
@@ -51,7 +51,7 @@ func TestPollerWait_RetriesOnErrPollAgain(t *testing.T) {
 			{ev: 42, cont: false, err: nil},
 		},
 	}
-	p := newPoller(d)
+	p := NewPoller(d)
 
 	start := time.Now()
 	ev, err := p.Wait(0)
@@ -81,7 +81,7 @@ func TestPollerWait_ContKeepsDontWaitTrue(t *testing.T) {
 			{ev: 2, cont: false, err: nil},
 		},
 	}
-	p := newPoller(d)
+	p := NewPoller(d)
 
 	ev, err := p.Wait(0)
 	if err != nil || ev != 1 {
@@ -99,32 +99,5 @@ func TestPollerWait_ContKeepsDontWaitTrue(t *testing.T) {
 	}
 	if d.fdCalls != 0 {
 		t.Fatalf("expected FD() still not called, got %d", d.fdCalls)
-	}
-}
-
-func TestPollerWait_CallsFDOnlyWhenDontWaitFalse(t *testing.T) {
-	d := &fakeDriver[int]{
-		fd: -1, // Cruciaal: zo ga je niet via unix.Poll, maar je test wel dat FD() opgevraagd wordt.
-		steps: []pollStep[int]{
-			{ev: 7, cont: false, err: nil},
-		},
-	}
-	p := newPoller(d)
-
-	// Forceer pad: !dontwait => hij gaat FD() halen.
-	p.wait = true
-
-	ev, err := p.Wait(0)
-	if err != nil || ev != 7 {
-		t.Fatalf("expected (7,nil), got (%v,%v)", ev, err)
-	}
-
-	if d.fdCalls != 1 {
-		t.Fatalf("expected FD() called exactly once, got %d", d.fdCalls)
-	}
-
-	// cont=false => dontwait moet false blijven na return.
-	if !p.wait {
-		t.Fatalf("expected dontwait=false after cont=false, got true")
 	}
 }

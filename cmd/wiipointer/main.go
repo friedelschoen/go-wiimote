@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/backend"
+	"github.com/friedelschoen/go-wiimote/discovery"
 	"github.com/friedelschoen/go-wiimote/pkg/irpointer"
 	"github.com/friedelschoen/go-wiimote/pkg/vinput"
 )
@@ -14,7 +16,10 @@ import (
 var ScrollSpeed = flag.Float64("scrollspeed", 0.01, "Set the vertical scrollspeed")
 var HorizScrollSpeed = flag.Float64("hscrollspeed", 0.01, "Set the horizontal scrollspeed")
 
-func watchDevice(dev *wiimote.Device) {
+func watchDevice(dev wiimote.Device) {
+	bat, _ := dev.Battery()
+	fmt.Printf("new wiimote at %s with %d%% battery, cap=%v\n", dev.Syspath(), bat, dev.Available(wiimote.InterfaceIR))
+
 	mouse, err := vinput.CreateMouse("wiimote-mouse",
 		vinput.Range{Min: -340, Max: 340, Res: 72},
 		vinput.Range{Min: -92, Max: 290, Res: 72}, []vinput.Key{
@@ -33,12 +38,9 @@ func watchDevice(dev *wiimote.Device) {
 	}
 	defer mouse.Close()
 
-	if err := dev.OpenInterfaces(false, &wiimote.InterfaceCore{}, &wiimote.InterfaceIR{}, &wiimote.InterfaceAccel{}); err != nil {
+	if err := dev.OpenInterfaces(false, wiimote.InterfaceCore|wiimote.InterfaceAccel|wiimote.InterfaceIR); err != nil {
 		log.Fatalf("error: unable to open device: %v", err)
 	}
-
-	bat, _ := dev.Battery()
-	fmt.Printf("new wiimote at %s with %d%% battery, cap=%v\n", dev.Syspath(), bat, dev.Available(&wiimote.InterfaceIR{}))
 
 	pointer := irpointer.NewIRPointer()
 	process := irpointer.FilterChain{
@@ -199,17 +201,23 @@ func watchDevice(dev *wiimote.Device) {
 func main() {
 	flag.Parse()
 
-	monitor, err := wiimote.NewMonitor(wiimote.MonitorUdev)
+	monitor, err := discovery.NewWiimoteMonitor()
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}
 
+	fmt.Println("waiting for devices...")
 	for {
 		dev, err := monitor.Wait(-1)
 		if err != nil || dev == nil {
 			log.Printf("error while polling: %v\n", err)
 			continue
 		}
-		go watchDevice(dev)
+		d, err := backend.NewDevice(dev, backend.BackendKernel)
+		if err != nil {
+			log.Printf("error creating device: %v\n", err)
+			continue
+		}
+		go watchDevice(d)
 	}
 }

@@ -5,6 +5,8 @@ package udev
 import "C"
 import (
 	"errors"
+
+	"github.com/friedelschoen/go-wiimote"
 )
 
 // Monitor is an opaque object handling an event source
@@ -19,8 +21,8 @@ func monitorUnref(m *Monitor) {
 	C.udev_unref(m.udevPtr)
 }
 
-// GetFD receives a file descriptor which can be checked for rediness
-func (m *Monitor) GetFD() int {
+// FD receives a file descriptor which can be checked for rediness
+func (m *Monitor) FD() int {
 	m.lock()
 	defer m.unlock()
 	fd := C.udev_monitor_get_fd(m.ptr)
@@ -36,7 +38,7 @@ func (m *Monitor) EnableReceiving() (err error) {
 	return
 }
 
-func (m *Monitor) ReceiveDevice() *Device {
+func (m *Monitor) ReceiveDevice() wiimote.DeviceInfo {
 	m.lock()
 	defer m.unlock()
 	ptr := C.udev_monitor_receive_device(m.ptr)

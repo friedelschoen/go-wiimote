@@ -78,7 +78,7 @@ func NewDeviceFromSyspath(syspath string) *Device {
 
 // NewDeviceFromDevnum returns a pointer to a new device identified by its Devnum, and nil on error
 // deviceType is 'c' for a character device and 'b' for a block device
-func NewDeviceFromDevnum(deviceType uint8, n Devnum) *Device {
+func NewDeviceFromDevnum(deviceType uint8, n devnum) *Device {
 	d := newDevice()
 	d.lock()
 	defer d.unlock()
@@ -118,16 +118,35 @@ func NewEnumerate() *Enumerate {
 	return e
 }
 
+// MonitorType describes how a monitor or enumerator should look for devices.
+type MonitorType uint
+
+const (
+	// Monitor uses kernel uevents
+	MonitorKernel MonitorType = 1
+	// Monitor uses udevd
+	MonitorUdev MonitorType = 0
+)
+
+func (t MonitorType) Name() string {
+	switch t {
+	case MonitorKernel:
+		return "kernel"
+	default:
+		return "udev"
+	}
+}
+
 // NewMonitorFromNetlink returns a pointer to a new monitor listening to a NetLink socket, and nil on error
 // The name argument is either "kernel" or "udev".
 // When passing "kernel" the events are received before they are processed by udev.
 // When passing "udev" the events are received after udev has processed the events and created device nodes.
 // In most cases you will want to use "udev".
-func NewMonitorFromNetlink(name string) *Monitor {
+func NewMonitorFromNetlink(t MonitorType) *Monitor {
 	m := newMonitor()
 	m.lock()
 	defer m.unlock()
-	n := C.CString(name)
+	n := C.CString(t.Name())
 	defer freeCharPtr(n)
 	m.ptr = C.udev_monitor_new_from_netlink(m.udevPtr, n)
 	return m

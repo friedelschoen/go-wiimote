@@ -8,6 +8,9 @@ import (
 	"errors"
 
 	"iter"
+
+	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/internal/sequences"
 )
 
 // Enumerate is an opaque struct wrapping a udev enumerate object.
@@ -110,13 +113,18 @@ func (e *Enumerate) AddMatchTag(tag string) (err error) {
 }
 
 // AddMatchParent adds a filter for a parent Device to include in the list.
-func (e *Enumerate) AddMatchParent(parent *Device) (err error) {
+func (e *Enumerate) AddMatchParent(parent wiimote.DeviceInfo) error {
 	e.lock()
 	defer e.unlock()
-	if C.udev_enumerate_add_match_parent(e.ptr, parent.ptr) != 0 {
-		err = errors.New("udev: udev_enumerate_add_match_parent failed")
+
+	parentdev, ok := parent.(*Device)
+	if !ok {
+		return errors.New("not a udev device")
 	}
-	return
+	if C.udev_enumerate_add_match_parent(e.ptr, parentdev.ptr) != 0 {
+		return errors.New("udev: udev_enumerate_add_match_parent failed")
+	}
+	return nil
 }
 
 // AddMatchIsInitialized adds a filter matching only devices which udev has set up already.
@@ -148,7 +156,7 @@ func (e *Enumerate) AddSyspath(syspath string) (err error) {
 // Devices returns an Iterator over the device syspaths matching the filter, sorted in dependency order.
 // The Iterator is using the github.com/jkeiser/iter package.
 // Values are returned as an interface{} and should be cast to string.
-func (e *Enumerate) Devices() (it iter.Seq[string], err error) {
+func (e *Enumerate) Devices() (it iter.Seq[wiimote.DeviceInfo], err error) {
 	e.lock()
 	defer e.unlock()
 	if C.udev_enumerate_scan_devices(e.ptr) < 0 {
@@ -156,11 +164,12 @@ func (e *Enumerate) Devices() (it iter.Seq[string], err error) {
 		return
 	}
 
-	return enumerateName(&e.udevContext, func() *C.struct_udev_list_entry {
+	names := enumerateName(&e.udevContext, func() *C.struct_udev_list_entry {
 		e.lock()
 		defer e.unlock()
 		return C.udev_enumerate_get_list_entry(e.ptr)
-	}), nil
+	})
+	return sequences.Map(names, func(path string) wiimote.DeviceInfo { return NewDeviceFromSyspath(path) }), nil
 }
 
 // Subsystems returns an Iterator over the subsystem syspaths matching the filter, sorted in dependency order.

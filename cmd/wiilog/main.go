@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/backend"
+	"github.com/friedelschoen/go-wiimote/discovery"
 )
 
 var (
@@ -25,37 +27,37 @@ type eventBlock struct {
 	Interface string        `json:"interface"`
 }
 
-func watchDevice(dev *wiimote.Device, mu *sync.Mutex) {
+func watchDevice(dev wiimote.Device, mu *sync.Mutex) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
-	var ifs []wiimote.Interface
-	ifs = append(ifs, &wiimote.InterfaceCore{})
+	var ifs wiimote.InterfaceKind
+	ifs |= wiimote.InterfaceCore
 	for name := range strings.SplitSeq(*openIf, ",") {
 		switch name {
 		case "accel":
-			ifs = append(ifs, &wiimote.InterfaceAccel{})
+			ifs |= wiimote.InterfaceAccel
 		case "bb", "balanceboard":
-			ifs = append(ifs, &wiimote.InterfaceBalanceBoard{})
+			ifs |= wiimote.InterfaceBalanceBoard
 		case "cc", "classiccontroller":
-			ifs = append(ifs, &wiimote.InterfaceClassicController{})
+			ifs |= wiimote.InterfaceClassicController
 		case "drums":
-			ifs = append(ifs, &wiimote.InterfaceDrums{})
+			ifs |= wiimote.InterfaceDrums
 		case "guitar":
-			ifs = append(ifs, &wiimote.InterfaceGuitar{})
+			ifs |= wiimote.InterfaceGuitar
 		case "ir":
-			ifs = append(ifs, &wiimote.InterfaceIR{})
+			ifs |= wiimote.InterfaceIR
 		case "mp", "motionplus":
-			ifs = append(ifs, &wiimote.InterfaceMotionPlus{})
+			ifs |= wiimote.InterfaceMotionPlus
 		case "nunchuck":
-			ifs = append(ifs, &wiimote.InterfaceNunchuck{})
+			ifs |= wiimote.InterfaceNunchuck
 		case "pc", "procontroller":
-			ifs = append(ifs, &wiimote.InterfaceProController{})
+			ifs |= wiimote.InterfaceProController
 		}
 	}
-	if err := dev.OpenInterfaces(true, ifs...); err != nil {
+	if err := dev.OpenInterfaces(true, ifs); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
-	dev.Watch(true)
+
 	var block eventBlock
 	for {
 		ev, err := dev.Wait(-1)
@@ -71,7 +73,7 @@ func watchDevice(dev *wiimote.Device, mu *sync.Mutex) {
 		block.Id = dev.Syspath()
 		block.Timestamp = ev.Timestamp()
 		if ev.Interface() != nil {
-			block.Interface = ev.Interface().Name()
+			block.Interface = ev.Interface().Kind().String()
 		}
 		b, err := json.Marshal(block)
 		if err != nil {
@@ -87,7 +89,7 @@ func watchDevice(dev *wiimote.Device, mu *sync.Mutex) {
 func main() {
 	flag.Parse()
 
-	monitor, err := wiimote.NewMonitor(wiimote.MonitorUdev)
+	monitor, err := discovery.NewWiimoteMonitor()
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}
@@ -100,6 +102,11 @@ func main() {
 			log.Printf("error while polling: %v\n", err)
 			continue
 		}
-		go watchDevice(dev, &mu)
+		d, err := backend.NewDevice(dev, backend.BackendKernel)
+		if err != nil {
+			log.Printf("error creating device: %v\n", err)
+			continue
+		}
+		go watchDevice(d, &mu)
 	}
 }

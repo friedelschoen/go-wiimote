@@ -1,6 +1,4 @@
-package wiimote
-
-//go:generate morestringer -output stringer.go Led Key:cconst KeyState MonitorType
+package linuxhid
 
 // #include <string.h>
 // #include <stdlib.h>

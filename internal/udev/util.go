@@ -9,7 +9,7 @@ import (
 	"iter"
 	"unsafe"
 
-	"github.com/friedelschoen/go-wiimote/pkg/udev/sequences"
+	"github.com/friedelschoen/go-wiimote/internal/sequences"
 )
 
 func freeCharPtr(s *C.char) {

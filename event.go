@@ -1,8 +1,6 @@
 package wiimote
 
-import (
-	"time"
-)
+import "time"
 
 // Key Event Identifiers
 //
@@ -130,25 +128,12 @@ type Event interface {
 	Timestamp() time.Time
 }
 
-type commonEvent struct {
-	iface     Interface
-	timestamp time.Time
-}
-
-func (evt *commonEvent) Interface() Interface {
-	return evt.iface
-}
-
-func (evt *commonEvent) Timestamp() time.Time {
-	return evt.timestamp
-}
-
 // EventKey is fired whenever a key is pressed or released. Valid
 // key-events include all the events reported by the core-interface,
 // which is normally only LEFT, RIGHT, UP, DOWN, A, B, PLUS, MINUS,
 // HOME, ONE, TWO.
 type EventKey struct {
-	commonEvent
+	Event
 	Code  Key      `json:"code"`
 	State KeyState `json:"state"`
 }
@@ -157,7 +142,7 @@ type EventKey struct {
 // Note that the accelerometer reports acceleration data, not speed
 // data!
 type EventAccel struct {
-	commonEvent
+	Event
 	Accel Vec3 `json:"accel"`
 }
 
@@ -168,7 +153,7 @@ type EventAccel struct {
 // Use IRSlot.Valid() to see whether a specific slot is
 // currently valid or whether it currently doesn't track any IR source.
 type EventIR struct {
-	commonEvent
+	Event
 	Slots [4]IRSlot `json:"slots"`
 }
 
@@ -185,14 +170,14 @@ func (slot IRSlot) Valid() bool {
 // EventBalanceBoard provides balance-board weight data. Four sensors report weight-data
 // for each of the four edges of the board.
 type EventBalanceBoard struct {
-	commonEvent
+	Event
 	Weights [4]int32 `json:"weights"`
 }
 
 // EventMotionPlus provides gyroscope events. These describe rotational speed, not
 // acceleration, of the motion-plus extension.
 type EventMotionPlus struct {
-	commonEvent
+	Event
 	Speed Vec3 `json:"speed"`
 }
 
@@ -209,7 +194,7 @@ type EventProControllerKey struct {
 // EventProControllerMove provides movement of analog sticks on the pro-controller and is
 // reported via this event.
 type EventProControllerMove struct {
-	commonEvent
+	Event
 	Sticks [2]Vec2 `json:"sticks"`
 }
 
@@ -227,7 +212,7 @@ type EventProControllerMove struct {
 // kernel closed our file-descriptor (for whatever reason). This is
 // returned regardless whether you watch for hotplug events or not.
 type EventWatch struct {
-	commonEvent
+	Event
 }
 
 // EventClassicControllerKey provides Classic Controller key events.
@@ -250,7 +235,7 @@ type EventClassicControllerKey struct {
 // TL/TR triggers, in which case these read 0 or MAX (63). The digital
 // TL/TR buttons are always reported correctly.
 type EventClassicControllerMove struct {
-	commonEvent
+	Event
 	StickLeft     Vec2  `json:"stick_left"`
 	StickRight    Vec2  `json:"stick_right"`
 	ShoulderLeft  int32 `json:"shoulder_left"`
@@ -272,7 +257,7 @@ type EventNunchukKey struct {
 // element contains the x/y positions of the analog stick. The second
 // array element contains the accelerometer information.
 type EventNunchukMove struct {
-	commonEvent
+	Event
 	Stick Vec2 `json:"stick"`
 	Accel Vec3 `json:"accel"`
 }
@@ -287,7 +272,7 @@ type EventDrumsKey struct {
 // EventDrumsMove provides Drums movement event
 // Movement and pressure events for drums controllers.
 type EventDrumsMove struct {
-	commonEvent
+	Event
 	Pad         Vec2  `json:"pad"`
 	CymbalLeft  int32 `json:"cymbal_left"`
 	CymbalRight int32 `json:"cymbal_right"`
@@ -310,93 +295,21 @@ type EventGuitarKey struct {
 // EventGuitarMove provides Guitar movement events.
 // Movement information for guitar controllers.
 type EventGuitarMove struct {
-	commonEvent
+	Event
 	Stick     Vec2  `json:"stick"`
 	WhammyBar int32 `json:"whammy_bar"`
 	FretBar   int32 `json:"fret_bar"`
 }
 
+// EventInterface is provided when a interface is added.
+type EventInterface struct {
+	Event
+}
+
 // EventGone provides Removal Event.
 // This event is sent whenever the device was removed. No payload is provided.
 // Non-hotplug aware applications may discard this event.
-// This is only returned if you explicitly watched for hotplug events.
-//
-// See Device.Watch().
+// Optionally Interface can be set, if nil the whole device is removed.
 type EventGone struct {
-	commonEvent
-}
-
-func (dev *Device) readUmon(pollEv uint32) (Event, error) {
-	_ = pollEv
-	hotplug := false
-	remove := false
-	path := dev.dev.Syspath()
-
-	// try to merge as many hotplug events as possible
-	for {
-		ndev := dev.umon.ReceiveDevice()
-		if ndev == nil {
-			break
-		}
-
-		// We are interested in three kinds of events:
-		// 1) "change" events on the main HID device notify
-		//    us of device-detection events.
-		// 2) "remove" events on the main HID device notify
-		//    us of device-removal.
-		// 3) "add"/"remove" events on input events (not
-		//    the evdev events with "devnode") notify us
-		//    of extension changes. */
-
-		act := ndev.Action()
-		npath := ndev.Syspath()
-		node := ndev.Devnode()
-		var ppath string
-		if p := ndev.ParentWithSubsystemDevtype("hid", ""); p != nil {
-			ppath = p.Syspath()
-		}
-		if act == "change" && path == npath {
-			hotplug = true
-		} else if act == "remove" && path == npath {
-			remove = true
-		} else if node == "" && path == ppath {
-			hotplug = true
-		}
-	}
-
-	// notify caller of removals via special event
-	if remove {
-		dev.readNodes()
-		return &EventGone{
-			commonEvent{
-				timestamp: time.Now(),
-			},
-		}, nil
-	}
-
-	// notify caller via generic hotplug event
-	if hotplug {
-		dev.readNodes()
-		return &EventWatch{
-			commonEvent{
-				timestamp: time.Now(),
-			},
-		}, nil
-	}
-
-	return nil, nil
-}
-
-func (dev *Device) dispatchEvent(evFd int32, pollEv uint32) (Event, error) {
-	if dev.umon != nil && dev.umon.GetFD() == int(evFd) {
-		return dev.readUmon(pollEv)
-	}
-	for _, iff := range dev.ifs {
-		if int32(iff.fd()) != evFd {
-			continue
-		}
-		return dispatchEvent(iff)
-	}
-
-	return nil, nil
+	Event
 }

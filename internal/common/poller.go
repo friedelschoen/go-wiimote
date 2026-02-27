@@ -1,18 +1,19 @@
-package wiimote
+package common
 
 import (
 	"errors"
 	"log"
 	"time"
 
+	"github.com/friedelschoen/go-wiimote"
 	"golang.org/x/sys/unix"
 )
 
 // ErrPollAgain is returned by a PollDriver to mark the poll invalid.
 var ErrPollAgain = errors.New("invalid polling, should retrying")
 
-// pollDriver defines a source that can be polled for events or data.
-type pollDriver[T any] interface {
+// pollerDriver defines a source that can be polled for events or data.
+type pollerDriver[T any] interface {
 	// FD returns a non-blocking file descriptor. When it becomes readable,
 	// Poll() is expected to return data immediately.
 	FD() int
@@ -30,22 +31,24 @@ type pollDriver[T any] interface {
 
 // poller drives a PollMonitor using poll(2) or retry logic.
 type poller[T any] struct {
-	drv  pollDriver[T]
+	drv  pollerDriver[T]
 	fd   int
 	wait bool
 }
 
-// newPoller creates a new Poller for the given monitor.
+// Newpoller creates a new poller for the given monitor.
 // The poller initially assumes that Poll() should be called without waiting.
-func newPoller[T any](drv pollDriver[T]) poller[T] {
-	return poller[T]{
+func NewPoller[T any](drv pollerDriver[T]) wiimote.Poller[T] {
+	return &poller[T]{
 		drv: drv,
 		fd:  -1,
 	}
 }
 
-// Wait waits for an event up to the specified timeout. A negative timeout is considered forever.
-// It handles ErrRetry internally and returns the first valid event or error.
+func (p *poller[T]) Poll() (T, bool, error) {
+	return p.drv.Poll()
+}
+
 func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
 	for {
 		if p.wait {
@@ -89,8 +92,6 @@ func (p *poller[T]) drain(yield func(T)) {
 	}
 }
 
-// Handle continuously polls and calls `yield` with new events.
-// It blocks forever and should be used in a new goroutine.
 func (p *poller[T]) Handle(yield func(T)) {
 	p.drain(yield)
 	for {
@@ -110,10 +111,6 @@ func (p *poller[T]) Handle(yield func(T)) {
 	}
 }
 
-// Stream continuously polls and writes events into ch. It is a wrapper for Handle.
-// It blocks forever and should be used in a new goroutine.
-//
-//	p.Handle(func(ev T) { ch <- ev })
 func (p *poller[T]) Stream(ch chan<- T) {
 	p.Handle(func(ev T) {
 		ch <- ev

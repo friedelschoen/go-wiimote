@@ -1,19 +1,21 @@
-package wiimote
+package linuxhid
 
 import (
 	"fmt"
 	"io"
 	"syscall"
+
+	"github.com/friedelschoen/go-wiimote/internal/common"
 )
 
 type Memory struct {
-	SysFile
+	common.UnbufferedFile
 }
 
 func (m Memory) Read(buf []byte) (int, error) {
 	n := 0
 	for n < len(buf) {
-		k, err := m.SysFile.Read(buf[n:])
+		k, err := m.UnbufferedFile.Read(buf[n:])
 		n += k
 		if err != nil && err != syscall.EINTR {
 			if err == io.EOF && n > 0 {
@@ -37,7 +39,7 @@ func (m Memory) Read(buf []byte) (int, error) {
 
 func (f Memory) ReadByte() (byte, error) {
 	var buf [1]byte
-	n, err := f.SysFile.Read(buf[:])
+	n, err := f.UnbufferedFile.Read(buf[:])
 	if err != nil {
 		if _, serr := f.Seek(1, io.SeekCurrent); serr != nil {
 			return 0, fmt.Errorf("%w (unable to skip: %w)", err, serr)

@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	wiimote "github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote"
 )
 
 // These tests validate the IR pointer algorithm as a pure state machine +

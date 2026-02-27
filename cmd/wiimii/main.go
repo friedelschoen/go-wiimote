@@ -8,18 +8,35 @@ import (
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/backend"
+	"github.com/friedelschoen/go-wiimote/discovery"
 	"github.com/friedelschoen/go-wiimote/pkg/eeprom"
 )
 
-func watchDevice(dev *wiimote.Device) {
+func watchDevice(dev wiimote.Device) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
-	coreif := wiimote.InterfaceCore{}
-	if err := dev.OpenInterfaces(true, &coreif); err != nil {
+
+	// coreif := wiimote.InterfaceCore{}
+	if err := dev.OpenInterfaces(true, wiimote.InterfaceCore); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
-	f, err := coreif.Memory()
+	var mif wiimote.MemoryInterface
+	for {
+		ev, err := dev.Wait(-1)
+		if err != nil && ev == nil {
+			continue
+		}
+		if ifev, ok := ev.(*wiimote.EventInterface); ok {
+			if i, ok := ifev.Interface().(wiimote.MemoryInterface); ok {
+				mif = i
+				break
+			}
+		}
+	}
+
+	f, err := mif.Memory()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -37,7 +54,7 @@ func watchDevice(dev *wiimote.Device) {
 func main() {
 	flag.Parse()
 
-	monitor, err := wiimote.NewMonitor(wiimote.MonitorUdev)
+	monitor, err := discovery.NewWiimoteMonitor()
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}
@@ -48,5 +65,10 @@ func main() {
 		log.Printf("error while polling: %v\n", err)
 		return
 	}
-	watchDevice(dev)
+	d, err := backend.NewDevice(dev, backend.BackendKernel)
+	if err != nil {
+		log.Printf("error creating device: %v\n", err)
+		return
+	}
+	watchDevice(d)
 }

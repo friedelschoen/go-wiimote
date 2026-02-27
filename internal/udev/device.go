@@ -6,8 +6,9 @@ package udev
 import "C"
 import (
 	"errors"
-
 	"iter"
+
+	"github.com/friedelschoen/go-wiimote"
 )
 
 // Device wraps a libudev device object
@@ -22,7 +23,7 @@ func deviceUnref(d *Device) {
 }
 
 // Parent returns the parent Device, or nil if the receiver has no parent Device
-func (d *Device) Parent() *Device {
+func (d *Device) Parent() wiimote.DeviceInfo {
 	d.lock()
 	defer d.unlock()
 	ptr := C.udev_device_get_parent(d.ptr)
@@ -34,7 +35,7 @@ func (d *Device) Parent() *Device {
 
 // ParentWithSubsystemDevtype returns the parent Device with the given subsystem and devtype,
 // or nil if the receiver has no such parent device
-func (d *Device) ParentWithSubsystemDevtype(subsystem, devtype string) *Device {
+func (d *Device) ParentWithSubsystemDevtype(subsystem, devtype string) wiimote.DeviceInfo {
 	d.lock()
 	defer d.unlock()
 	ss, dt := C.CString(subsystem), C.CString(devtype)
@@ -164,10 +165,10 @@ func (d *Device) Driver() string {
 }
 
 // Devnum returns the device major/minor number.
-func (d *Device) Devnum() Devnum {
+func (d *Device) Devnum() wiimote.Devnum {
 	d.lock()
 	defer d.unlock()
-	return Devnum{C.udev_device_get_devnum(d.ptr)}
+	return devnum{C.udev_device_get_devnum(d.ptr)}
 }
 
 // Action returns the action for the event.

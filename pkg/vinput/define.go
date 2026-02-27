@@ -1,6 +1,6 @@
 package vinput
 
-//go:generate morestringer -lookup {}ByName -output stringer.go Key:cname
+//go:generate morestringer -lookup Lookup{} -output stringer.go Key:cname
 // or stringer -type Key -output stringer.go
 
 // #include <linux/uinput.h>
@@ -20,7 +20,7 @@ const (
 	uiDevDestroy = C.UI_DEV_DESTROY
 	uiAbsSetup   = C.UI_ABS_SETUP
 	uiSysnameLen = C.SYSNAME_LEN
-	uiGetSysname = C.GET_SYSNAME
+	uiSysname    = C.GET_SYSNAME
 	uiSetEvBit   = C.UI_SET_EVBIT
 	uiSetKeyBit  = C.UI_SET_KEYBIT
 	uiSetRelBit  = C.UI_SET_RELBIT

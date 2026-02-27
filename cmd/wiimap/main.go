@@ -11,284 +11,10 @@ import (
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/backend"
+	"github.com/friedelschoen/go-wiimote/discovery"
 	"github.com/friedelschoen/go-wiimote/pkg/vinput"
 )
-
-var wiiKeynames = map[string]wiimote.Key{
-	"LEFT":           wiimote.KeyLeft,
-	"RIGHT":          wiimote.KeyRight,
-	"UP":             wiimote.KeyUp,
-	"DOWN":           wiimote.KeyDown,
-	"A":              wiimote.KeyA,
-	"B":              wiimote.KeyB,
-	"PLUS":           wiimote.KeyPlus,
-	"MINUS":          wiimote.KeyMinus,
-	"HOME":           wiimote.KeyHome,
-	"ONE":            wiimote.KeyOne,
-	"TWO":            wiimote.KeyTwo,
-	"X":              wiimote.KeyX,
-	"Y":              wiimote.KeyY,
-	"TL":             wiimote.KeyTL,
-	"TR":             wiimote.KeyTR,
-	"ZL":             wiimote.KeyZL,
-	"ZR":             wiimote.KeyZR,
-	"THUMBL":         wiimote.KeyThumbL,
-	"THUMBR":         wiimote.KeyThumbR,
-	"C":              wiimote.KeyC,
-	"Z":              wiimote.KeyZ,
-	"STRUM_BAR_UP":   wiimote.KeyStrumBarUp,
-	"STRUM_BAR_DOWN": wiimote.KeyStrumBarDown,
-	"FRET_FAR_UP":    wiimote.KeyFretFarUp,
-	"FRET_UP":        wiimote.KeyFretUp,
-	"FRET_MID":       wiimote.KeyFretMid,
-	"FRET_LOW":       wiimote.KeyFretLow,
-	"FRET_FAR_LOW":   wiimote.KeyFretFarLow,
-}
-
-var realKeynames = map[string]vinput.Key{
-	"KEY_ESC":              vinput.KeyEsc,
-	"KEY_1":                vinput.Key1,
-	"KEY_2":                vinput.Key2,
-	"KEY_3":                vinput.Key3,
-	"KEY_4":                vinput.Key4,
-	"KEY_5":                vinput.Key5,
-	"KEY_6":                vinput.Key6,
-	"KEY_7":                vinput.Key7,
-	"KEY_8":                vinput.Key8,
-	"KEY_9":                vinput.Key9,
-	"KEY_0":                vinput.Key0,
-	"KEY_MINUS":            vinput.KeyMinus,
-	"KEY_EQUAL":            vinput.KeyEqual,
-	"KEY_BACKSPACE":        vinput.KeyBackspace,
-	"KEY_TAB":              vinput.KeyTab,
-	"KEY_Q":                vinput.KeyQ,
-	"KEY_W":                vinput.KeyW,
-	"KEY_E":                vinput.KeyE,
-	"KEY_R":                vinput.KeyR,
-	"KEY_T":                vinput.KeyT,
-	"KEY_Y":                vinput.KeyY,
-	"KEY_U":                vinput.KeyU,
-	"KEY_I":                vinput.KeyI,
-	"KEY_O":                vinput.KeyO,
-	"KEY_P":                vinput.KeyP,
-	"KEY_LEFTBRACE":        vinput.KeyLeftbrace,
-	"KEY_RIGHTBRACE":       vinput.KeyRightbrace,
-	"KEY_ENTER":            vinput.KeyEnter,
-	"KEY_LEFTCTRL":         vinput.KeyLeftctrl,
-	"KEY_A":                vinput.KeyA,
-	"KEY_S":                vinput.KeyS,
-	"KEY_D":                vinput.KeyD,
-	"KEY_F":                vinput.KeyF,
-	"KEY_G":                vinput.KeyG,
-	"KEY_H":                vinput.KeyH,
-	"KEY_J":                vinput.KeyJ,
-	"KEY_K":                vinput.KeyK,
-	"KEY_L":                vinput.KeyL,
-	"KEY_SEMICOLON":        vinput.KeySemicolon,
-	"KEY_APOSTROPHE":       vinput.KeyApostrophe,
-	"KEY_GRAVE":            vinput.KeyGrave,
-	"KEY_LEFTSHIFT":        vinput.KeyLeftshift,
-	"KEY_BACKSLASH":        vinput.KeyBackslash,
-	"KEY_Z":                vinput.KeyZ,
-	"KEY_X":                vinput.KeyX,
-	"KEY_C":                vinput.KeyC,
-	"KEY_V":                vinput.KeyV,
-	"KEY_B":                vinput.KeyB,
-	"KEY_N":                vinput.KeyN,
-	"KEY_M":                vinput.KeyM,
-	"KEY_COMMA":            vinput.KeyComma,
-	"KEY_DOT":              vinput.KeyDot,
-	"KEY_SLASH":            vinput.KeySlash,
-	"KEY_RIGHTSHIFT":       vinput.KeyRightshift,
-	"KEY_KPASTERISK":       vinput.KeyKpasterisk,
-	"KEY_LEFTALT":          vinput.KeyLeftalt,
-	"KEY_SPACE":            vinput.KeySpace,
-	"KEY_CAPSLOCK":         vinput.KeyCapslock,
-	"KEY_F1":               vinput.KeyF1,
-	"KEY_F2":               vinput.KeyF2,
-	"KEY_F3":               vinput.KeyF3,
-	"KEY_F4":               vinput.KeyF4,
-	"KEY_F5":               vinput.KeyF5,
-	"KEY_F6":               vinput.KeyF6,
-	"KEY_F7":               vinput.KeyF7,
-	"KEY_F8":               vinput.KeyF8,
-	"KEY_F9":               vinput.KeyF9,
-	"KEY_F10":              vinput.KeyF10,
-	"KEY_NUMLOCK":          vinput.KeyNumlock,
-	"KEY_SCROLLLOCK":       vinput.KeyScrolllock,
-	"KEY_KP7":              vinput.KeyKp7,
-	"KEY_KP8":              vinput.KeyKp8,
-	"KEY_KP9":              vinput.KeyKp9,
-	"KEY_KPMINUS":          vinput.KeyKpminus,
-	"KEY_KP4":              vinput.KeyKp4,
-	"KEY_KP5":              vinput.KeyKp5,
-	"KEY_KP6":              vinput.KeyKp6,
-	"KEY_KPPLUS":           vinput.KeyKpplus,
-	"KEY_KP1":              vinput.KeyKp1,
-	"KEY_KP2":              vinput.KeyKp2,
-	"KEY_KP3":              vinput.KeyKp3,
-	"KEY_KP0":              vinput.KeyKp0,
-	"KEY_KPDOT":            vinput.KeyKpdot,
-	"KEY_ZENKAKUHANKAKU":   vinput.KeyZenkakuhankaku,
-	"KEY_102ND":            vinput.Key102nd,
-	"KEY_F11":              vinput.KeyF11,
-	"KEY_F12":              vinput.KeyF12,
-	"KEY_RO":               vinput.KeyRo,
-	"KEY_KATAKANA":         vinput.KeyKatakana,
-	"KEY_HIRAGANA":         vinput.KeyHiragana,
-	"KEY_HENKAN":           vinput.KeyHenkan,
-	"KEY_KATAKANAHIRAGANA": vinput.KeyKatakanahiragana,
-	"KEY_MUHENKAN":         vinput.KeyMuhenkan,
-	"KEY_KPJPCOMMA":        vinput.KeyKpjpcomma,
-	"KEY_KPENTER":          vinput.KeyKpenter,
-	"KEY_RIGHTCTRL":        vinput.KeyRightctrl,
-	"KEY_KPSLASH":          vinput.KeyKpslash,
-	"KEY_SYSRQ":            vinput.KeySysrq,
-	"KEY_RIGHTALT":         vinput.KeyRightalt,
-	"KEY_LINEFEED":         vinput.KeyLinefeed,
-	"KEY_HOME":             vinput.KeyHome,
-	"KEY_UP":               vinput.KeyUp,
-	"KEY_PAGEUP":           vinput.KeyPageup,
-	"KEY_LEFT":             vinput.KeyLeft,
-	"KEY_RIGHT":            vinput.KeyRight,
-	"KEY_END":              vinput.KeyEnd,
-	"KEY_DOWN":             vinput.KeyDown,
-	"KEY_PAGEDOWN":         vinput.KeyPagedown,
-	"KEY_INSERT":           vinput.KeyInsert,
-	"KEY_DELETE":           vinput.KeyDelete,
-	"KEY_MACRO":            vinput.KeyMacro,
-	"KEY_MUTE":             vinput.KeyMute,
-	"KEY_VOLUMEDOWN":       vinput.KeyVolumedown,
-	"KEY_VOLUMEUP":         vinput.KeyVolumeup,
-	"KEY_POWER":            vinput.KeyPower,
-	"KEY_KPEQUAL":          vinput.KeyKpequal,
-	"KEY_KPPLUSMINUS":      vinput.KeyKpplusminus,
-	"KEY_PAUSE":            vinput.KeyPause,
-	"KEY_SCALE":            vinput.KeyScale,
-	"KEY_KPCOMMA":          vinput.KeyKpcomma,
-	"KEY_HANGEUL":          vinput.KeyHangeul,
-	"KEY_HANJA":            vinput.KeyHanja,
-	"KEY_YEN":              vinput.KeyYen,
-	"KEY_LEFTMETA":         vinput.KeyLeftmeta,
-	"KEY_RIGHTMETA":        vinput.KeyRightmeta,
-	"KEY_COMPOSE":          vinput.KeyCompose,
-	"KEY_STOP":             vinput.KeyStop,
-	"KEY_AGAIN":            vinput.KeyAgain,
-	"KEY_PROPS":            vinput.KeyProps,
-	"KEY_UNDO":             vinput.KeyUndo,
-	"KEY_FRONT":            vinput.KeyFront,
-	"KEY_COPY":             vinput.KeyCopy,
-	"KEY_OPEN":             vinput.KeyOpen,
-	"KEY_PASTE":            vinput.KeyPaste,
-	"KEY_FIND":             vinput.KeyFind,
-	"KEY_CUT":              vinput.KeyCut,
-	"KEY_HELP":             vinput.KeyHelp,
-	"KEY_MENU":             vinput.KeyMenu,
-	"KEY_CALC":             vinput.KeyCalc,
-	"KEY_SETUP":            vinput.KeySetup,
-	"KEY_SLEEP":            vinput.KeySleep,
-	"KEY_WAKEUP":           vinput.KeyWakeup,
-	"KEY_FILE":             vinput.KeyFile,
-	"KEY_SENDFILE":         vinput.KeySendfile,
-	"KEY_DELETEFILE":       vinput.KeyDeletefile,
-	"KEY_XFER":             vinput.KeyXfer,
-	"KEY_PROG1":            vinput.KeyProg1,
-	"KEY_PROG2":            vinput.KeyProg2,
-	"KEY_WWW":              vinput.KeyWww,
-	"KEY_MSDOS":            vinput.KeyMsdos,
-	"KEY_COFFEE":           vinput.KeyCoffee,
-	"KEY_DIRECTION":        vinput.KeyDirection,
-	"KEY_CYCLEWINDOWS":     vinput.KeyCyclewindows,
-	"KEY_MAIL":             vinput.KeyMail,
-	"KEY_BOOKMARKS":        vinput.KeyBookmarks,
-	"KEY_COMPUTER":         vinput.KeyComputer,
-	"KEY_BACK":             vinput.KeyBack,
-	"KEY_FORWARD":          vinput.KeyForward,
-	"KEY_CLOSECD":          vinput.KeyClosecd,
-	"KEY_EJECTCD":          vinput.KeyEjectcd,
-	"KEY_EJECTCLOSECD":     vinput.KeyEjectclosecd,
-	"KEY_NEXTSONG":         vinput.KeyNextsong,
-	"KEY_PLAYPAUSE":        vinput.KeyPlaypause,
-	"KEY_PREVIOUSSONG":     vinput.KeyPrevioussong,
-	"KEY_STOPCD":           vinput.KeyStopcd,
-	"KEY_RECORD":           vinput.KeyRecord,
-	"KEY_REWIND":           vinput.KeyRewind,
-	"KEY_PHONE":            vinput.KeyPhone,
-	"KEY_ISO":              vinput.KeyIso,
-	"KEY_CONFIG":           vinput.KeyConfig,
-	"KEY_HOMEPAGE":         vinput.KeyHomepage,
-	"KEY_REFRESH":          vinput.KeyRefresh,
-	"KEY_EXIT":             vinput.KeyExit,
-	"KEY_MOVE":             vinput.KeyMove,
-	"KEY_EDIT":             vinput.KeyEdit,
-	"KEY_SCROLLUP":         vinput.KeyScrollup,
-	"KEY_SCROLLDOWN":       vinput.KeyScrolldown,
-	"KEY_KPLEFTPAREN":      vinput.KeyKpleftparen,
-	"KEY_KPRIGHTPAREN":     vinput.KeyKprightparen,
-	"KEY_NEW":              vinput.KeyNew,
-	"KEY_REDO":             vinput.KeyRedo,
-	"KEY_F13":              vinput.KeyF13,
-	"KEY_F14":              vinput.KeyF14,
-	"KEY_F15":              vinput.KeyF15,
-	"KEY_F16":              vinput.KeyF16,
-	"KEY_F17":              vinput.KeyF17,
-	"KEY_F18":              vinput.KeyF18,
-	"KEY_F19":              vinput.KeyF19,
-	"KEY_F20":              vinput.KeyF20,
-	"KEY_F21":              vinput.KeyF21,
-	"KEY_F22":              vinput.KeyF22,
-	"KEY_F23":              vinput.KeyF23,
-	"KEY_F24":              vinput.KeyF24,
-	"KEY_PLAYCD":           vinput.KeyPlaycd,
-	"KEY_PAUSECD":          vinput.KeyPausecd,
-	"KEY_PROG3":            vinput.KeyProg3,
-	"KEY_PROG4":            vinput.KeyProg4,
-	"KEY_DASHBOARD":        vinput.KeyDashboard,
-	"KEY_SUSPEND":          vinput.KeySuspend,
-	"KEY_CLOSE":            vinput.KeyClose,
-	"KEY_PLAY":             vinput.KeyPlay,
-	"KEY_FASTFORWARD":      vinput.KeyFastforward,
-	"KEY_BASSBOOST":        vinput.KeyBassboost,
-	"KEY_PRINT":            vinput.KeyPrint,
-	"KEY_HP":               vinput.KeyHp,
-	"KEY_CAMERA":           vinput.KeyCamera,
-	"KEY_SOUND":            vinput.KeySound,
-	"KEY_QUESTION":         vinput.KeyQuestion,
-	"KEY_EMAIL":            vinput.KeyEmail,
-	"KEY_CHAT":             vinput.KeyChat,
-	"KEY_SEARCH":           vinput.KeySearch,
-	"KEY_CONNECT":          vinput.KeyConnect,
-	"KEY_FINANCE":          vinput.KeyFinance,
-	"KEY_SPORT":            vinput.KeySport,
-	"KEY_SHOP":             vinput.KeyShop,
-	"KEY_ALTERASE":         vinput.KeyAlterase,
-	"KEY_CANCEL":           vinput.KeyCancel,
-	"KEY_BRIGHTNESSDOWN":   vinput.KeyBrightnessdown,
-	"KEY_BRIGHTNESSUP":     vinput.KeyBrightnessup,
-	"KEY_MEDIA":            vinput.KeyMedia,
-	"KEY_SWITCHVIDEOMODE":  vinput.KeySwitchvideomode,
-	"KEY_KBDILLUMTOGGLE":   vinput.KeyKbdillumtoggle,
-	"KEY_KBDILLUMDOWN":     vinput.KeyKbdillumdown,
-	"KEY_KBDILLUMUP":       vinput.KeyKbdillumup,
-	"KEY_SEND":             vinput.KeySend,
-	"KEY_REPLY":            vinput.KeyReply,
-	"KEY_FORWARDMAIL":      vinput.KeyForwardmail,
-	"KEY_SAVE":             vinput.KeySave,
-	"KEY_DOCUMENTS":        vinput.KeyDocuments,
-	"KEY_BATTERY":          vinput.KeyBattery,
-	"KEY_BLUETOOTH":        vinput.KeyBluetooth,
-	"KEY_WLAN":             vinput.KeyWlan,
-	"KEY_UWB":              vinput.KeyUwb,
-	"KEY_UNKNOWN":          vinput.KeyUnknown,
-	"KEY_VIDEONEXT":        vinput.KeyVideoNext,
-	"KEY_VIDEOPREV":        vinput.KeyVideoPrev,
-	"KEY_BRIGHTNESSCYCLE":  vinput.KeyBrightnessCycle,
-	"KEY_BRIGHTNESSZERO":   vinput.KeyBrightnessZero,
-	"KEY_DISPLAYOFF":       vinput.KeyDisplayOff,
-	"KEY_WIMAX":            vinput.KeyWimax,
-	"KEY_RFKILL":           vinput.KeyRfkill,
-	"KEY_MICMUTE":          vinput.KeyMicmute,
-}
 
 var (
 	kbname = flag.String("name", "wiimote-virtual", "Name to use")
@@ -304,12 +30,12 @@ func loadMapping(r io.Reader) map[wiimote.Key]vinput.Key {
 			fmt.Fprintf(os.Stderr, "error: missing delimiter: %s\n", line)
 			continue
 		}
-		wiibutton, ok := wiiKeynames[strings.TrimSpace(wiibuttonstr)]
+		wiibutton, ok := wiimote.LookupKey(strings.TrimSpace(wiibuttonstr))
 		if !ok {
 			fmt.Fprintf(os.Stderr, "error: unknown button: %s\n", wiibuttonstr)
 			continue
 		}
-		realkey, ok := realKeynames[strings.TrimSpace(realkeystr)]
+		realkey, ok := vinput.LookupKey(strings.TrimSpace(realkeystr))
 		if !ok {
 			fmt.Fprintf(os.Stderr, "error: unknown key: %s\n", realkeystr)
 			continue
@@ -319,11 +45,10 @@ func loadMapping(r io.Reader) map[wiimote.Key]vinput.Key {
 	return mapping
 }
 
-func watchDevice(dev *wiimote.Device, mapping map[wiimote.Key]vinput.Key) {
+func watchDevice(dev wiimote.Device, mapping map[wiimote.Key]vinput.Key) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
-	coreif := wiimote.InterfaceCore{}
-	if err := dev.OpenInterfaces(true, &coreif); err != nil {
+	if err := dev.OpenInterfaces(true, wiimote.InterfaceCore); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
@@ -334,17 +59,22 @@ func watchDevice(dev *wiimote.Device, mapping map[wiimote.Key]vinput.Key) {
 	defer kb.Close()
 	var leds wiimote.Led
 
-	dev.Watch(true)
+	var rumbleif wiimote.RumbleInterface
 	for {
 		ev, err := dev.Wait(-1)
 		if err != nil {
 			log.Printf("unable to poll event: %v\n", err)
 		}
-		fmt.Printf("%T: %+v\n", ev, ev)
 		switch ev := ev.(type) {
+		case *wiimote.EventInterface:
+			if i, ok := ev.Interface().(wiimote.RumbleInterface); ok {
+				rumbleif = i
+			}
 		case *wiimote.EventKey:
 			if ev.Code == wiimote.KeyHome {
-				coreif.Rumble(ev.State == wiimote.StatePressed)
+				if rumbleif != nil {
+					rumbleif.Rumble(ev.State == wiimote.StatePressed)
+				}
 				continue
 			} else if ev.Code == wiimote.KeyTwo {
 				if ev.State == wiimote.StatePressed {
@@ -372,18 +102,23 @@ func main() {
 
 	mapping := loadMapping(os.Stdin)
 
-	monitor, err := wiimote.NewMonitor(wiimote.MonitorUdev)
+	monitor, err := discovery.NewWiimoteMonitor()
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}
 
+	fmt.Println("waiting for devices...")
 	for {
-		fmt.Println("waiting for devices...")
 		dev, err := monitor.Wait(-1)
 		if err != nil || dev == nil {
 			log.Printf("error while polling: %v\n", err)
 			continue
 		}
-		watchDevice(dev, mapping)
+		d, err := backend.NewDevice(dev, backend.BackendKernel)
+		if err != nil {
+			log.Printf("error creating device: %v\n", err)
+			continue
+		}
+		watchDevice(d, mapping)
 	}
 }

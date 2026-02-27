@@ -1,74 +1,81 @@
-package wiimote
+package discovery
 
 import (
+	"iter"
 	"os"
 	"syscall"
 	"time"
 
-	"github.com/friedelschoen/go-wiimote/pkg/udev"
+	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/internal/common"
+	"github.com/friedelschoen/go-wiimote/internal/sequences"
 )
 
-// MonitorType describes how a monitor or enumerator should look for devices.
-type MonitorType uint
-
-const (
-	// Monitor uses kernel uevents
-	MonitorKernel MonitorType = 1
-	// Monitor uses udevd
-	MonitorUdev MonitorType = 0
-)
-
-func (t MonitorType) Name() string {
-	switch t {
-	case MonitorKernel:
-		return "kernel"
-	default:
-		return "udev"
+// IterDevices returns all currently available devices. It returns an error if the
+// initialization failed. Each iteration yields a device and error if the device-creation failed.
+func IterDevices() (iter.Seq[wiimote.DeviceInfo], error) {
+	enum := NewEnumerate()
+	if err := enum.AddMatchSubsystem("hid"); err != nil {
+		return nil, err
 	}
+
+	iter, err := enum.Devices()
+	if err != nil {
+		return nil, err
+	}
+
+	deviter := sequences.Map(iter, func(dev wiimote.DeviceInfo) wiimote.DeviceInfo {
+		if dev == nil {
+			return nil
+		}
+		if dev.Action() != "" && dev.Action() != "add" {
+			return nil
+		}
+		if dev.Driver() != "wiimote" || dev.Subsystem() != "hid" {
+			return nil
+		}
+		return dev
+	})
+	deviter = sequences.Filter(deviter, func(d wiimote.DeviceInfo) bool {
+		return d != nil
+	})
+	return deviter, nil
 }
 
-// Monitor describes a monitor for wiimote-devices. This includes currently available
+// WiimoteMonitor describes a monitor for wiimote-devices. This includes currently available
 // but also hot-plugged devices.
 //
 // Monitors are not thread-safe.
-type Monitor struct {
-	poller[*Device]
-	monitor *udev.Monitor
-	enum    chan struct {
-		dev *Device
-		err error
-	}
+type WiimoteMonitor struct {
+	wiimote.Poller[wiimote.DeviceInfo]
+
+	monitor wiimote.DeviceMonitor
+	enum    chan wiimote.DeviceInfo
 }
 
-// NewMonitor creates a new monitor.
+// NewWiimoteMonitor creates a new monitor.
 //
 // A monitor always provides all devices that are available on a system
 // and hot-plugged devices.
 //
 // The object and underlying structure is freed automatically by default.
-func NewMonitor(typ MonitorType) (*Monitor, error) {
-	var mon Monitor
-	mon.poller = newPoller(&mon)
+func NewWiimoteMonitor() (*WiimoteMonitor, error) {
+	var mon WiimoteMonitor
+	mon.Poller = common.NewPoller(&mon)
 
 	devs, err := IterDevices()
 	if err != nil {
 		return nil, err
 	}
-	mon.enum = make(chan struct {
-		dev *Device
-		err error
-	})
+	mon.enum = make(chan wiimote.DeviceInfo)
 	go func() {
-		for dev, err := range devs {
-			mon.enum <- struct {
-				dev *Device
-				err error
-			}{dev, err}
+		for dev := range devs {
+			mon.enum <- dev
 		}
 		close(mon.enum)
 	}()
 
-	mon.monitor = udev.NewMonitorFromNetlink(typ.Name())
+	mon.monitor = NewMonitor()
 	if mon.monitor == nil {
 		return nil, os.ErrInvalid
 	}
@@ -84,8 +91,8 @@ func NewMonitor(typ MonitorType) (*Monitor, error) {
 // FD returns the file-descriptor to notify readiness. The FD is non-blocking.
 // Only one file-descriptor exists, that is, this function always returns the
 // same descriptor.
-func (mon *Monitor) FD() int {
-	fd := mon.monitor.GetFD()
+func (mon *WiimoteMonitor) FD() int {
+	fd := mon.monitor.FD()
 	syscall.SetNonblock(fd, true)
 	return fd
 }
@@ -101,20 +108,19 @@ func (mon *Monitor) FD() int {
 // if the monitor was opened to watch the system for hotplug events.
 //
 // Use FD() to get notified when a new event is available.
-func (mon *Monitor) Poll() (*Device, bool, error) {
+func (mon *WiimoteMonitor) Poll() (wiimote.DeviceInfo, bool, error) {
 	// test if enumerator has devices, then wait for new devices
 	if iter, ok := <-mon.enum; ok {
-		return iter.dev, true, iter.err
+		return iter, true, nil
 	}
 
 	dev := mon.monitor.ReceiveDevice()
 	if dev == nil {
-		return nil, false, ErrPollAgain
+		return nil, false, common.ErrPollAgain
 	}
 	if (dev.Action() != "" && dev.Action() != "add") || dev.Driver() != "wiimote" || dev.Subsystem() != "hid" {
-		return nil, false, ErrPollAgain
+		return nil, false, common.ErrPollAgain
 	}
 	time.Sleep(50 * time.Millisecond)
-	iff, err := newDeviceFromUdev(dev)
-	return iff, false, err
+	return dev, false, nil
 }

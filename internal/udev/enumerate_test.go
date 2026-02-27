@@ -63,8 +63,7 @@ func TestEnumerateDevicesWithFilter(t *testing.T) {
 	if err != nil {
 		t.Fail()
 	}
-	for path := range ds {
-		d := NewDeviceFromSyspath(path)
+	for d := range ds {
 		if d.Subsystem() != "block" {
 			t.Error("Wrong subsystem")
 		}

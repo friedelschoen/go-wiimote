@@ -16,22 +16,22 @@ package udev
 // }
 import "C"
 
-// Devnum is a kernel device number
-type Devnum struct {
+// devnum is a kernel device number
+type devnum struct {
 	d C.dev_t
 }
 
 // Major returns the major part of a Devnum
-func (d Devnum) Major() int {
+func (d devnum) Major() int {
 	return int(C.go_udev_major(d.d))
 }
 
 // Minor returns the minor part of a Devnum
-func (d Devnum) Minor() int {
+func (d devnum) Minor() int {
 	return int(C.go_udev_minor(d.d))
 }
 
-// MkDev creates a Devnum from a major and minor number
-func MkDev(major, minor int) Devnum {
-	return Devnum{C.go_udev_mkdev((C.int)(major), (C.int)(minor))}
+// mkDev creates a Devnum from a major and minor number
+func mkDev(major, minor int) devnum {
+	return devnum{C.go_udev_mkdev((C.int)(major), (C.int)(minor))}
 }

@@ -127,17 +127,17 @@ func (dev *uinputDevice) ioctl(cmd, ptr uintptr) error {
 	return err
 }
 
-// GetSyspath returns the sysfs path of the device. It lays somewhere at /sys/devices/virtual/input/<name>
-func (dev *uinputDevice) GetSyspath() (string, error) {
-	name, err := dev.GetSysname()
+// Syspath returns the sysfs path of the device. It lays somewhere at /sys/devices/virtual/input/<name>
+func (dev *uinputDevice) Syspath() (string, error) {
+	name, err := dev.Sysname()
 	sysInputDir := "/sys/devices/virtual/input/" + name
 	return sysInputDir, err
 }
 
-// GetSysname returns the internal sysfs name of the device.
-func (dev *uinputDevice) GetSysname() (string, error) {
+// Sysname returns the internal sysfs name of the device.
+func (dev *uinputDevice) Sysname() (string, error) {
 	var path [uiSysnameLen + 1]byte
-	err := dev.ioctl(uiGetSysname, uintptr(unsafe.Pointer(&path[0])))
+	err := dev.ioctl(uiSysname, uintptr(unsafe.Pointer(&path[0])))
 	n := bytes.IndexByte(path[:], 0)
 	if n < 0 {
 		return string(path[:]), err

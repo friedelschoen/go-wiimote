@@ -1,4 +1,4 @@
-package wiimote
+package linuxhid
 
 import (
 	"syscall"
