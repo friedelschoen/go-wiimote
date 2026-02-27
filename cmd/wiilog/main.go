@@ -11,8 +11,7 @@ import (
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
-	"github.com/friedelschoen/go-wiimote/backend"
-	"github.com/friedelschoen/go-wiimote/discovery"
+	"github.com/friedelschoen/go-wiimote/driver"
 )
 
 var (
@@ -54,7 +53,7 @@ func watchDevice(dev wiimote.Device, mu *sync.Mutex) {
 			ifs |= wiimote.InterfaceProController
 		}
 	}
-	if err := dev.OpenInterfaces(true, ifs); err != nil {
+	if err := dev.OpenInterfaces(ifs, true); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
@@ -89,7 +88,7 @@ func watchDevice(dev wiimote.Device, mu *sync.Mutex) {
 func main() {
 	flag.Parse()
 
-	monitor, err := discovery.NewWiimoteMonitor()
+	monitor, err := driver.NewWiimoteMonitor()
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}
@@ -102,7 +101,7 @@ func main() {
 			log.Printf("error while polling: %v\n", err)
 			continue
 		}
-		d, err := backend.NewDevice(dev, backend.BackendKernel)
+		d, err := driver.NewDevice(dev, driver.BackendKernel)
 		if err != nil {
 			log.Printf("error creating device: %v\n", err)
 			continue

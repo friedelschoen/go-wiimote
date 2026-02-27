@@ -1,6 +1,6 @@
 //go:build linux
 
-package discovery
+package driver
 
 import (
 	"github.com/friedelschoen/go-wiimote"

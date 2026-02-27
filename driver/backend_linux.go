@@ -1,6 +1,6 @@
 //go:build linux
 
-package backend
+package driver
 
 import (
 	"github.com/friedelschoen/go-wiimote"
@@ -10,7 +10,7 @@ import (
 func NewDevice(info wiimote.DeviceInfo, backend Backend) (wiimote.Device, error) {
 	switch backend {
 	case BackendKernel:
-		return linuxhid.NewDevice(info)
+		return linuxhid.NewDevice(info, NewMonitor, NewEnumerate)
 	default:
 		panic("backend not supported")
 	}

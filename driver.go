@@ -44,7 +44,10 @@ type Device interface {
 	// kernel removes the interface or on error conditions. You always get an
 	// EventWatch event which you should react on. This is returned
 	// regardless whether Watch() was enabled or not.
-	OpenInterfaces(wr bool, ifaces InterfaceKind) error
+	OpenInterfaces(ifaces InterfaceKind, wr bool) error
+
+	// Interface receives an interface and returns nil this interface is not opened
+	Interface(ifaces InterfaceKind) Interface
 
 	// IsAvailable returns a bitmask of available devices. These devices can be opened and are
 	// guaranteed to be present on the hardware at this time. If you watch your

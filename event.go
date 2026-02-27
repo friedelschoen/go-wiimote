@@ -304,6 +304,7 @@ type EventGuitarMove struct {
 // EventInterface is provided when a interface is added.
 type EventInterface struct {
 	Event
+	Kind InterfaceKind
 }
 
 // EventGone provides Removal Event.

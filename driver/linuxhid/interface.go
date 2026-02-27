@@ -18,7 +18,7 @@ type Interface interface {
 	wiimote.Interface
 
 	fd() common.UnbufferedFile
-	open(dev *Device, node string, wr bool) error
+	open(dev *Device, kind wiimote.InterfaceKind, node string, wr bool) error
 	acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error)
 }
 
@@ -31,11 +31,17 @@ type commonInterface struct {
 	opened bool
 	// Open file
 	file common.UnbufferedFile
+	// current kind
+	kind wiimote.InterfaceKind
 }
 
 // Node is an absolute path which points to the sys-directory. When opened, a node is bound to this device.
 func (iface *commonInterface) Node() string {
 	return iface.node
+}
+
+func (iface *commonInterface) Kind() wiimote.InterfaceKind {
+	return iface.kind
 }
 
 func (iface *commonInterface) Device() wiimote.Device {
@@ -55,7 +61,7 @@ func (iface *commonInterface) Opened() bool {
 	return iface.opened
 }
 
-func (iff *commonInterface) open(dev *Device, node string, wr bool) error {
+func (iff *commonInterface) open(dev *Device, kind wiimote.InterfaceKind, node string, wr bool) error {
 	if iff.dev != nil && iff.node != "" && iff.opened {
 		return nil
 	}
@@ -99,7 +105,7 @@ func (iff *commonInterface) Close() error {
 	iff.opened = false
 	iff.file = 0
 
-	delete(iff.dev.ifs, iff.Node())
+	delete(iff.dev.openIfs, iff.kind)
 	return iff.dev.readNodes()
 }
 
@@ -111,8 +117,8 @@ type rumbleInterface struct {
 	rumbleID    int
 }
 
-func (iface *rumbleInterface) open(dev *Device, node string, wr bool) error {
-	if err := iface.commonInterface.open(dev, node, wr); err != nil {
+func (iface *rumbleInterface) open(dev *Device, kind wiimote.InterfaceKind, node string, wr bool) error {
+	if err := iface.commonInterface.open(dev, kind, node, wr); err != nil {
 		return err
 	}
 
@@ -173,10 +179,6 @@ func (dev *rumbleInterface) Rumble(state bool) error {
 
 type InterfaceCore struct {
 	rumbleInterface
-}
-
-func (InterfaceCore) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceCore
 }
 
 func (iface *InterfaceCore) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
@@ -241,10 +243,6 @@ type InterfaceAccel struct {
 	accel wiimote.Vec3
 }
 
-func (InterfaceAccel) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceAccel
-}
-
 func (iface *InterfaceAccel) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	if event == C.EV_SYN {
 		var ev wiimote.EventAccel
@@ -274,12 +272,8 @@ type InterfaceIR struct {
 	slots [4]wiimote.IRSlot
 }
 
-func (InterfaceIR) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceIR
-}
-
-func (iface *InterfaceIR) open(dev *Device, node string, wr bool) error {
-	if err := iface.commonInterface.open(dev, node, wr); err != nil {
+func (iface *InterfaceIR) open(dev *Device, kind wiimote.InterfaceKind, node string, wr bool) error {
+	if err := iface.commonInterface.open(dev, kind, node, wr); err != nil {
 		return err
 	}
 	for i := range iface.slots {
@@ -330,10 +324,6 @@ type InterfaceMotionPlus struct {
 	normaizeFactor int32
 
 	speed wiimote.Vec3
-}
-
-func (InterfaceMotionPlus) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceMotionPlus
 }
 
 // SetMPNormalization sets Motion-Plus normalization and calibration values. The Motion-Plus sensor is very
@@ -420,10 +410,6 @@ type InterfaceNunchuck struct {
 	accel wiimote.Vec3
 }
 
-func (InterfaceNunchuck) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceNunchuck
-}
-
 func (iface *InterfaceNunchuck) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
@@ -476,10 +462,6 @@ type InterfaceClassicController struct {
 	stickRight    wiimote.Vec2
 	shoulderLeft  int32
 	shoulderRight int32
-}
-
-func (InterfaceClassicController) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceClassicController
 }
 
 func (iface *InterfaceClassicController) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
@@ -564,10 +546,6 @@ type InterfaceBalanceBoard struct {
 	weights [4]int32
 }
 
-func (InterfaceBalanceBoard) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceBalanceBoard
-}
-
 func (iface *InterfaceBalanceBoard) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	if event == C.EV_SYN {
 		var ev wiimote.EventBalanceBoard
@@ -598,10 +576,6 @@ type InterfaceProController struct {
 	rumbleInterface
 
 	sticks [2]wiimote.Vec2
-}
-
-func (InterfaceProController) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceProController
 }
 
 func (iface *InterfaceProController) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
@@ -690,10 +664,6 @@ type InterfaceDrums struct {
 	hiHat       int32
 }
 
-func (InterfaceDrums) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceDrums
-}
-
 func (iface *InterfaceDrums) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
@@ -760,10 +730,6 @@ type InterfaceGuitar struct {
 	stick     wiimote.Vec2
 	whammyBar int32
 	fretBar   int32
-}
-
-func (InterfaceGuitar) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceGuitar
 }
 
 func (iface *InterfaceGuitar) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {

@@ -11,8 +11,7 @@ import (
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
-	"github.com/friedelschoen/go-wiimote/backend"
-	"github.com/friedelschoen/go-wiimote/discovery"
+	"github.com/friedelschoen/go-wiimote/driver"
 	"github.com/friedelschoen/go-wiimote/pkg/vinput"
 )
 
@@ -48,7 +47,7 @@ func loadMapping(r io.Reader) map[wiimote.Key]vinput.Key {
 func watchDevice(dev wiimote.Device, mapping map[wiimote.Key]vinput.Key) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
-	if err := dev.OpenInterfaces(true, wiimote.InterfaceCore); err != nil {
+	if err := dev.OpenInterfaces(wiimote.InterfaceCore, true); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
@@ -59,17 +58,13 @@ func watchDevice(dev wiimote.Device, mapping map[wiimote.Key]vinput.Key) {
 	defer kb.Close()
 	var leds wiimote.Led
 
-	var rumbleif wiimote.RumbleInterface
+	rumbleif := dev.Interface(wiimote.InterfaceCore).(wiimote.RumbleInterface)
 	for {
 		ev, err := dev.Wait(-1)
 		if err != nil {
 			log.Printf("unable to poll event: %v\n", err)
 		}
 		switch ev := ev.(type) {
-		case *wiimote.EventInterface:
-			if i, ok := ev.Interface().(wiimote.RumbleInterface); ok {
-				rumbleif = i
-			}
 		case *wiimote.EventKey:
 			if ev.Code == wiimote.KeyHome {
 				if rumbleif != nil {
@@ -102,7 +97,7 @@ func main() {
 
 	mapping := loadMapping(os.Stdin)
 
-	monitor, err := discovery.NewWiimoteMonitor()
+	monitor, err := driver.NewWiimoteMonitor()
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}
@@ -114,7 +109,7 @@ func main() {
 			log.Printf("error while polling: %v\n", err)
 			continue
 		}
-		d, err := backend.NewDevice(dev, backend.BackendKernel)
+		d, err := driver.NewDevice(dev, driver.BackendKernel)
 		if err != nil {
 			log.Printf("error creating device: %v\n", err)
 			continue

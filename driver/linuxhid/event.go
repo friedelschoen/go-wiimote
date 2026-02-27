@@ -86,7 +86,7 @@ func (dev *Device) dispatchEvent(evFd int32, pollEv uint32) (wiimote.Event, erro
 	if dev.umon != nil && dev.umon.FD() == int(evFd) {
 		return dev.readUmon(pollEv)
 	}
-	for _, iff := range dev.ifs {
+	for _, iff := range dev.openIfs {
 		if int32(iff.fd()) != evFd {
 			continue
 		}

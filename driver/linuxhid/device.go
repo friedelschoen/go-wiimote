@@ -1,4 +1,3 @@
-// Package wiimote has bindings for libwiimote, a library to read and control inputs on a Nintendo WiiMote and accessories.
 package linuxhid
 
 // #include <linux/input.h>
@@ -15,7 +14,6 @@ import (
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
-	"github.com/friedelschoen/go-wiimote/discovery"
 	"github.com/friedelschoen/go-wiimote/internal/common"
 )
 
@@ -27,6 +25,9 @@ const debugfs = "/sys/kernel/debug"
 type Device struct {
 	wiimote.Poller[wiimote.Event]
 
+	newMonitor func() wiimote.DeviceMonitor
+	newEnum    func() wiimote.DeviceEnumerator
+
 	//  epoll file descriptor
 	efd int
 	//  main udev device
@@ -34,9 +35,9 @@ type Device struct {
 	//  udev monitor
 	umon wiimote.DeviceMonitor
 
-	// open interfaces -- node -> interface
-	ifs map[string]Interface
-	// available interfaces -- node -> name
+	// open interfaces -- kind -> interface
+	openIfs map[wiimote.InterfaceKind]Interface
+	// available interfaces -- kind -> name
 	availIfs map[wiimote.InterfaceKind]string
 	// device type attribute
 	devtypeAttr string
@@ -58,19 +59,25 @@ type Device struct {
 // the hid device, which is normally /sys/bus/hid/devices/[dev].
 //
 // The object and underlying structure is freed automatically by default.
-func NewDevice(dev wiimote.DeviceInfo) (*Device, error) {
+func NewDevice(dev wiimote.DeviceInfo, newMonitor func() wiimote.DeviceMonitor, newEnum func() wiimote.DeviceEnumerator) (*Device, error) {
 	var d Device
 	d.Poller = common.NewPoller(&d)
 	d.dev = dev
+	d.newMonitor = newMonitor
+	d.newEnum = newEnum
 
-	driver := d.dev.Driver()
+	drv := d.dev.Driver()
 	subs := d.dev.Subsystem()
-	if driver != "wiimote" || subs != "hid" {
+	if drv != "wiimote" || subs != "hid" {
 		return nil, os.ErrInvalid
 	}
 	syspath := dev.Syspath()
 	d.devtypeAttr = path.Join(syspath, "devtype")
 	d.extensionAttr = path.Join(syspath, "extension")
+
+	d.moreEvents = make(chan wiimote.Event, 128)
+	d.availIfs = make(map[wiimote.InterfaceKind]string)
+	d.openIfs = make(map[wiimote.InterfaceKind]Interface)
 
 	var err error
 	d.efd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
@@ -81,9 +88,8 @@ func NewDevice(dev wiimote.DeviceInfo) (*Device, error) {
 		syscall.Close(d.efd)
 		return nil, err
 	}
-	d.moreEvents = make(chan wiimote.Event, 128)
 
-	d.umon = discovery.NewMonitor()
+	d.umon = d.newMonitor()
 	if err := d.umon.FilterAddMatchSubsystem("input"); err != nil {
 		syscall.Close(d.efd)
 		return nil, err
@@ -122,7 +128,7 @@ func NewDevice(dev wiimote.DeviceInfo) (*Device, error) {
 // When called during hotplug-events, this updates all currently known
 // information and removes nodes that are no longer present.
 func (dev *Device) readNodes() error {
-	e := discovery.NewEnumerate()
+	e := dev.newEnum()
 
 	if err := e.AddMatchSubsystem("input"); err != nil {
 		return err
@@ -135,13 +141,6 @@ func (dev *Device) readNodes() error {
 	}
 	if err := e.AddMatchParent(dev.dev); err != nil {
 		return err
-	}
-
-	if dev.availIfs == nil {
-		dev.availIfs = make(map[wiimote.InterfaceKind]string)
-	}
-	if dev.ifs == nil {
-		dev.ifs = make(map[string]Interface)
 	}
 
 	// The returned list is sorted. So we first get an inputXY entry,
@@ -176,6 +175,12 @@ func (dev *Device) readNodes() error {
 				kind, ok := InterfaceKindFromName(prevIf)
 				if ok {
 					dev.availIfs[kind] = node
+					dev.moreEvents <- &wiimote.EventInterface{
+						Event: commonEvent{
+							timestamp: time.Now(),
+						},
+						Kind: kind,
+					}
 				}
 			}
 		case "leds":
@@ -197,7 +202,7 @@ func (dev *Device) readNodes() error {
 	}
 
 	// close no longer available ifaces
-	for _, iff := range dev.ifs {
+	for _, iff := range dev.openIfs {
 		if _, ok := dev.availIfs[iff.Kind()]; !ok {
 			iff.Close()
 		}
@@ -234,7 +239,7 @@ func (dev *Device) Syspath() string {
 // kernel removes the interface or on error conditions. You always get an
 // EventWatch event which you should react on. This is returned
 // regardless whether Watch() was enabled or not.
-func (dev *Device) OpenInterfaces(wr bool, ifaces wiimote.InterfaceKind) error {
+func (dev *Device) OpenInterfaces(ifaces wiimote.InterfaceKind, wr bool) error {
 	var errs []error
 	for kind := wiimote.InterfaceCore; kind <= wiimote.InterfaceGuitar; kind <<= 1 {
 		if ifaces&kind == 0 {
@@ -245,19 +250,22 @@ func (dev *Device) OpenInterfaces(wr bool, ifaces wiimote.InterfaceKind) error {
 			continue
 		}
 		iface := InterfaceFromName(kind)
-		if err := iface.open(dev, node, wr); err != nil {
+		if err := iface.open(dev, kind, node, wr); err != nil {
 			errs = append(errs, err)
 			continue
 		}
-		dev.ifs[node] = iface
-		dev.moreEvents <- &wiimote.EventInterface{
-			Event: commonEvent{
-				timestamp: time.Now(),
-				iface:     iface,
-			},
-		}
+		dev.openIfs[kind] = iface
 	}
 	return errors.Join(errs...)
+}
+
+// Interface receives an interface and returns nil this interface is not opened
+func (dev *Device) Interface(kind wiimote.InterfaceKind) wiimote.Interface {
+	iface, ok := dev.openIfs[kind]
+	if !ok {
+		return nil
+	}
+	return iface
 }
 
 // IsAvailable returns a bitmask of available devices. These devices can be opened and are
