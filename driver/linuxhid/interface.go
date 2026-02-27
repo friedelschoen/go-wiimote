@@ -136,7 +136,7 @@ func (iface *rumbleInterface) uploadRumble() error {
 	rmb := (*C.struct_ff_rumble_effect)(unsafe.Pointer(&effect.u))
 	rmb.strong_magnitude = 1
 
-	if err := ioctl(uintptr(iface.file), C.EVIOCSFF, uintptr(unsafe.Pointer(&effect))); err != nil {
+	if err := iface.file.Ioctl(C.EVIOCSFF, uintptr(unsafe.Pointer(&effect))); err != nil {
 		return err
 	}
 	iface.rumbleValid = true

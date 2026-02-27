@@ -29,3 +29,11 @@ func (fd UnbufferedFile) ReadAt(buf []byte, off int64) (n int, err error) {
 func (fd UnbufferedFile) Close() error {
 	return syscall.Close(int(fd))
 }
+
+func (fd UnbufferedFile) Ioctl(cmd, ptr uintptr) error {
+	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), cmd, ptr)
+	if err == 0 {
+		return nil
+	}
+	return err
+}

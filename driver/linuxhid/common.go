@@ -38,11 +38,3 @@ func cTimeMake(orig time.Time) C.struct_timeval {
 func cTime(t C.struct_timeval) time.Time {
 	return time.Unix(int64(t.tv_sec), int64(t.tv_usec)*1000)
 }
-
-func ioctl(fd, cmd, ptr uintptr) error {
-	_, _, err := syscall.Syscall(syscall.SYS_IOCTL, fd, cmd, ptr)
-	if err == 0 {
-		return nil
-	}
-	return err
-}
