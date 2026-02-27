@@ -8,24 +8,8 @@ package linuxhid
 // unsigned int eviocgname(size_t sz) { return EVIOCGNAME(sz); }
 import "C"
 import (
-	"syscall"
 	"time"
 )
-
-// cError takes an integer error code.
-//
-// code == 0 -> nil
-// code < 0  -> syscall.Errno(-code)
-// code > 0  -> syscall.Errno(code)
-func cError(ret C.int) error {
-	if ret == 0 {
-		return nil
-	}
-	if ret < 0 {
-		ret = -ret
-	}
-	return syscall.Errno(ret)
-}
 
 func cTimeMake(orig time.Time) C.struct_timeval {
 	var t C.struct_timeval

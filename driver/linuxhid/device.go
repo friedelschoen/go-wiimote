@@ -1,8 +1,5 @@
 package linuxhid
 
-// #include <linux/input.h>
-// #include <errno.h>
-import "C"
 import (
 	"errors"
 	"os"
