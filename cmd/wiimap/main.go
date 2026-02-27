@@ -12,6 +12,7 @@ import (
 
 	"github.com/friedelschoen/go-wiimote"
 	"github.com/friedelschoen/go-wiimote/driver"
+	"github.com/friedelschoen/go-wiimote/pkg/discover"
 	"github.com/friedelschoen/go-wiimote/pkg/vinput"
 )
 
@@ -97,7 +98,7 @@ func main() {
 
 	mapping := loadMapping(os.Stdin)
 
-	monitor, err := driver.NewWiimoteMonitor()
+	monitor, err := discover.NewWiimoteMonitor()
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}

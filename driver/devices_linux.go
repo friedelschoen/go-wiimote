@@ -4,7 +4,7 @@ package driver
 
 import (
 	"github.com/friedelschoen/go-wiimote"
-	"github.com/friedelschoen/go-wiimote/internal/udev"
+	"github.com/friedelschoen/go-wiimote/driver/udev"
 )
 
 func NewEnumerate() wiimote.DeviceEnumerator {

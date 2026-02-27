@@ -1,4 +1,4 @@
-package driver
+package discover
 
 import (
 	"iter"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
+	"github.com/friedelschoen/go-wiimote/driver"
 	"github.com/friedelschoen/go-wiimote/internal/common"
 	"github.com/friedelschoen/go-wiimote/internal/sequences"
 )
@@ -14,7 +15,7 @@ import (
 // IterDevices returns all currently available devices. It returns an error if the
 // initialization failed. Each iteration yields a device and error if the device-creation failed.
 func IterDevices() (iter.Seq[wiimote.DeviceInfo], error) {
-	enum := NewEnumerate()
+	enum := driver.NewEnumerate()
 	if err := enum.AddMatchSubsystem("hid"); err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func NewWiimoteMonitor() (*WiimoteMonitor, error) {
 		close(mon.enum)
 	}()
 
-	mon.monitor = NewMonitor()
+	mon.monitor = driver.NewMonitor()
 	if mon.monitor == nil {
 		return nil, os.ErrInvalid
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/friedelschoen/go-wiimote"
 	"github.com/friedelschoen/go-wiimote/driver"
+	"github.com/friedelschoen/go-wiimote/pkg/discover"
 )
 
 var (
@@ -88,7 +89,7 @@ func watchDevice(dev wiimote.Device, mu *sync.Mutex) {
 func main() {
 	flag.Parse()
 
-	monitor, err := driver.NewWiimoteMonitor()
+	monitor, err := discover.NewWiimoteMonitor()
 	if err != nil {
 		log.Fatalln("error: ", err)
 	}
