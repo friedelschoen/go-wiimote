@@ -16,10 +16,10 @@ import (
 
 const debugfs = "/sys/kernel/debug"
 
-// Device describes the communication with a single device. That is, you
+// device describes the communication with a single device. That is, you
 // create one for each device you use. All sub-features are opened on this
 // object.
-type Device struct {
+type device struct {
 	wiimote.Poller[wiimote.Event]
 
 	newMonitor func() wiimote.DeviceMonitor
@@ -33,7 +33,7 @@ type Device struct {
 	umon wiimote.DeviceMonitor
 
 	// open features -- kind -> feature
-	openIfs map[wiimote.FeatureKind]Feature
+	openIfs map[wiimote.FeatureKind]feature
 	// available features -- kind -> name
 	availIfs map[wiimote.FeatureKind]string
 	// device type attribute
@@ -56,8 +56,8 @@ type Device struct {
 // the hid device, which is normally /sys/bus/hid/devices/[dev].
 //
 // The object and underlying structure is freed automatically by default.
-func NewDevice(dev wiimote.DeviceInfo, newMonitor func() wiimote.DeviceMonitor, newEnum func() wiimote.DeviceEnumerator) (*Device, error) {
-	var d Device
+func NewDevice(dev wiimote.DeviceInfo, newMonitor func() wiimote.DeviceMonitor, newEnum func() wiimote.DeviceEnumerator) (*device, error) {
+	var d device
 	d.Poller = common.NewPoller(&d)
 	d.dev = dev
 	d.newMonitor = newMonitor
@@ -72,9 +72,9 @@ func NewDevice(dev wiimote.DeviceInfo, newMonitor func() wiimote.DeviceMonitor, 
 	d.devtypeAttr = path.Join(syspath, "devtype")
 	d.extensionAttr = path.Join(syspath, "extension")
 
-	d.moreEvents = make(chan wiimote.Event, 128)
+	d.moreEvents = make(chan wiimote.Event, 1024)
 	d.availIfs = make(map[wiimote.FeatureKind]string)
-	d.openIfs = make(map[wiimote.FeatureKind]Feature)
+	d.openIfs = make(map[wiimote.FeatureKind]feature)
 
 	var err error
 	d.efd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
@@ -124,7 +124,7 @@ func NewDevice(dev wiimote.DeviceInfo, newMonitor func() wiimote.DeviceMonitor, 
 //
 // When called during hotplug-events, this updates all currently known
 // information and removes nodes that are no longer present.
-func (dev *Device) readNodes() error {
+func (dev *device) readNodes() error {
 	e := dev.newEnum()
 
 	if err := e.AddMatchSubsystem("input"); err != nil {
@@ -169,7 +169,7 @@ func (dev *Device) readNodes() error {
 				if node == "" {
 					continue
 				}
-				kind, ok := FeatureKindFromName(prevIf)
+				kind, ok := featureKindFromName(prevIf)
 				if ok {
 					dev.availIfs[kind] = node
 					dev.moreEvents <- &wiimote.EventFeature{
@@ -213,14 +213,14 @@ func (dev *Device) readNodes() error {
 // Therefore, this always returns the same single file-descriptor. You need to
 // watch this for readable-events (POLLIN/EPOLLIN) and call
 // Poll() whenever it is readable.
-func (dev *Device) FD() int {
+func (dev *device) FD() int {
 	return dev.efd
 }
 
 // Syspath returns the sysfs path of the underlying device. It is not neccesarily
 // the same as the one during NewDevice. However, it is guaranteed to
 // point at the same device (symlinks may be resolved).
-func (dev *Device) Syspath() string {
+func (dev *device) Syspath() string {
 	return dev.dev.Syspath()
 }
 
@@ -236,7 +236,7 @@ func (dev *Device) Syspath() string {
 // kernel removes the feature or on error conditions. You always get an
 // EventWatch event which you should react on. This is returned
 // regardless whether Watch() was enabled or not.
-func (dev *Device) OpenFeatures(ifaces wiimote.FeatureKind, wr bool) error {
+func (dev *device) OpenFeatures(ifaces wiimote.FeatureKind, wr bool) error {
 	var errs []error
 	for kind := wiimote.FeatureCore; kind <= wiimote.FeatureGuitar; kind <<= 1 {
 		if ifaces&kind == 0 {
@@ -246,7 +246,7 @@ func (dev *Device) OpenFeatures(ifaces wiimote.FeatureKind, wr bool) error {
 		if !ok {
 			continue
 		}
-		iface := FeatureFromName(kind)
+		iface := featureFromName(kind)
 		if err := iface.open(dev, kind, node, wr); err != nil {
 			errs = append(errs, err)
 			continue
@@ -257,7 +257,7 @@ func (dev *Device) OpenFeatures(ifaces wiimote.FeatureKind, wr bool) error {
 }
 
 // Feature receives an feature and returns nil this feature is not opened
-func (dev *Device) Feature(kind wiimote.FeatureKind) wiimote.Feature {
+func (dev *device) Feature(kind wiimote.FeatureKind) wiimote.Feature {
 	iface, ok := dev.openIfs[kind]
 	if !ok {
 		return nil
@@ -269,7 +269,7 @@ func (dev *Device) Feature(kind wiimote.FeatureKind) wiimote.Feature {
 // guaranteed to be present on the hardware at this time. If you watch your
 // device for hotplug events you will get notified whenever this bitmask changes.
 // See the WatchEvent event for more information.
-func (dev *Device) Available(iface wiimote.FeatureKind) bool {
+func (dev *device) Available(iface wiimote.FeatureKind) bool {
 	_, ok := dev.availIfs[iface]
 	return ok
 }
@@ -288,7 +288,7 @@ func (dev *Device) Available(iface wiimote.FeatureKind) bool {
 //
 // It returns the event or nil if an error occured, the continue-flag whether a new event can be polled right away and
 // optionally and error, if the error is ErrRetry, consider polling again for new events.
-func (dev *Device) Poll() (wiimote.Event, bool, error) {
+func (dev *device) Poll() (wiimote.Event, bool, error) {
 	select {
 	case e := <-dev.moreEvents:
 		return e, true, nil
@@ -318,7 +318,7 @@ func (dev *Device) Poll() (wiimote.Event, bool, error) {
 // LED reads the LED state for the given LED.
 //
 // LEDs are a static feature that does not have to be opened first.
-func (dev *Device) LED() (result wiimote.Led, _ error) {
+func (dev *device) LED() (result wiimote.Led, _ error) {
 	for i := range 4 {
 		cont, err := os.ReadFile(dev.ledAttrs[i])
 		if err != nil {
@@ -334,7 +334,7 @@ func (dev *Device) LED() (result wiimote.Led, _ error) {
 // SetLED writes the LED state for the given LED.
 //
 // LEDs are a static feature that does not have to be opened first.
-func (dev *Device) SetLED(leds wiimote.Led) error {
+func (dev *device) SetLED(leds wiimote.Led) error {
 	for i := range 4 {
 		state := leds&(1<<i) != 0
 
@@ -352,7 +352,7 @@ func (dev *Device) SetLED(leds wiimote.Led) error {
 // Battery reads the current battery capacity. The capacity is represented as percentage, thus the return value is an integer between 0 and 100.
 //
 // Batteries are a static feature that does not have to be opened first.
-func (dev *Device) Battery() (uint, error) {
+func (dev *device) Battery() (uint, error) {
 	cont, err := os.ReadFile(dev.batteryAttr)
 	if err != nil {
 		return 0, err
@@ -366,7 +366,7 @@ func (dev *Device) Battery() (uint, error) {
 // it returns "unknown" and the corresponding error.
 //
 // This is a static feature that does not have to be opened first.
-func (dev *Device) DevType() (string, error) {
+func (dev *device) DevType() (string, error) {
 	cont, err := os.ReadFile(dev.devtypeAttr)
 	return strings.TrimSpace(string(cont)), err
 }
@@ -375,12 +375,12 @@ func (dev *Device) DevType() (string, error) {
 // extension cannot be determined, it returns a string "none" and the corresponding error.
 //
 // This is a static feature that does not have to be opened first.
-func (dev *Device) Extension() (string, error) {
+func (dev *device) Extension() (string, error) {
 	cont, err := os.ReadFile(dev.extensionAttr)
 	return strings.TrimSpace(string(cont)), err
 }
 
-func (dev *Device) String() string {
+func (dev *device) String() string {
 	var w strings.Builder
 	w.WriteString("wiimote-device ")
 	devtype, _ := dev.DevType()

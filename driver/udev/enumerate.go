@@ -115,8 +115,6 @@ func (e *Enumerate) AddSyspath(syspath string) (err error) {
 }
 
 // Devices returns an Iterator over the device syspaths matching the filter, sorted in dependency order.
-// The Iterator is using the github.com/jkeiser/iter package.
-// Values are returned as an feature{} and should be cast to string.
 func (e *Enumerate) Devices() (it iter.Seq[wiimote.DeviceInfo], err error) {
 	e.lock()
 	defer e.unlock()
@@ -134,8 +132,6 @@ func (e *Enumerate) Devices() (it iter.Seq[wiimote.DeviceInfo], err error) {
 }
 
 // Subsystems returns an Iterator over the subsystem syspaths matching the filter, sorted in dependency order.
-// The Iterator is using the github.com/jkeiser/iter package.
-// Values are returned as an feature{} and should be cast to string.
 func (e *Enumerate) Subsystems() (it iter.Seq[string], err error) {
 	e.lock()
 	defer e.unlock()

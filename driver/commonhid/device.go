@@ -20,7 +20,7 @@ func (e commonEvent) Feature() wiimote.Feature { return e.iface }
 func (e commonEvent) Timestamp() time.Time     { return e.timestamp }
 
 type ifaceCore struct {
-	dev    *Device
+	dev    *device
 	opened bool
 }
 
@@ -38,7 +38,7 @@ func (i *ifaceCore) Opened() bool {
 	return i.opened
 }
 
-type Device struct {
+type device struct {
 	wiimote.Poller[wiimote.Event]
 
 	transport Transport
@@ -59,7 +59,7 @@ type Transport interface {
 }
 
 func NewDevice(transport Transport) wiimote.Device {
-	d := &Device{
+	d := &device{
 		transport:  transport,
 		openIfs:    make(map[wiimote.FeatureKind]wiimote.Feature),
 		availIfs:   wiimote.FeatureCore, // minimal promise for now
@@ -69,13 +69,13 @@ func NewDevice(transport Transport) wiimote.Device {
 	return d
 }
 
-func (d *Device) Syspath() string { return "" }
+func (d *device) Syspath() string { return "" }
 
-func (d *Device) String() string {
+func (d *device) String() string {
 	return "wiimote-device (commonhid)"
 }
 
-func (d *Device) OpenFeatures(ifaces wiimote.FeatureKind, wr bool) error {
+func (d *device) OpenFeatures(ifaces wiimote.FeatureKind, wr bool) error {
 	_ = wr // transport might be read-only or read-write; we don't enforce here
 
 	// For now: only Core is implemented.
@@ -101,40 +101,40 @@ func (d *Device) OpenFeatures(ifaces wiimote.FeatureKind, wr bool) error {
 	return errors.Join(errs...)
 }
 
-func (d *Device) FD() int {
+func (d *device) FD() int {
 	return d.transport.FD()
 }
 
-func (d *Device) Feature(kind wiimote.FeatureKind) wiimote.Feature {
+func (d *device) Feature(kind wiimote.FeatureKind) wiimote.Feature {
 	return d.openIfs[kind]
 }
 
-func (d *Device) Available(iface wiimote.FeatureKind) bool {
+func (d *device) Available(iface wiimote.FeatureKind) bool {
 	return d.availIfs&iface != 0
 }
 
-func (d *Device) LED() (wiimote.Led, error) {
+func (d *device) LED() (wiimote.Led, error) {
 	return 0, os.ErrInvalid
 }
 
-func (d *Device) SetLED(leds wiimote.Led) error {
+func (d *device) SetLED(leds wiimote.Led) error {
 	_ = leds
 	return os.ErrInvalid
 }
 
-func (d *Device) Battery() (uint, error) {
+func (d *device) Battery() (uint, error) {
 	return 0, os.ErrInvalid
 }
 
-func (d *Device) DevType() (string, error) {
+func (d *device) DevType() (string, error) {
 	return "unknown", os.ErrInvalid
 }
 
-func (d *Device) Extension() (string, error) {
+func (d *device) Extension() (string, error) {
 	return "none", os.ErrInvalid
 }
 
-func (d *Device) Poll() (wiimote.Event, bool, error) {
+func (d *device) Poll() (wiimote.Event, bool, error) {
 	// 1) return queued events first
 	select {
 	case ev := <-d.moreEvents:
@@ -194,7 +194,7 @@ func (d *Device) Poll() (wiimote.Event, bool, error) {
 	return nil, false, common.ErrPollAgain
 }
 
-func (d *Device) enqueueButtonDeltas(ts time.Time, btn uint16) {
+func (d *device) enqueueButtonDeltas(ts time.Time, btn uint16) {
 	prev := d.btnPrev
 	if btn == prev {
 		return

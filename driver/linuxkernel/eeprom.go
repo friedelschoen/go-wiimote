@@ -8,11 +8,11 @@ import (
 	"github.com/friedelschoen/go-wiimote/internal/common"
 )
 
-type Memory struct {
+type memory struct {
 	common.UnbufferedFile
 }
 
-func (m Memory) Read(buf []byte) (int, error) {
+func (m memory) Read(buf []byte) (int, error) {
 	n := 0
 	for n < len(buf) {
 		k, err := m.UnbufferedFile.Read(buf[n:])
@@ -37,7 +37,7 @@ func (m Memory) Read(buf []byte) (int, error) {
 
 }
 
-func (f Memory) ReadByte() (byte, error) {
+func (f memory) ReadByte() (byte, error) {
 	var buf [1]byte
 	n, err := f.UnbufferedFile.Read(buf[:])
 	if err != nil {
@@ -53,7 +53,7 @@ func (f Memory) ReadByte() (byte, error) {
 	return buf[0], nil
 }
 
-func (m Memory) ReadAt(buf []byte, off int64) (int, error) {
+func (m memory) ReadAt(buf []byte, off int64) (int, error) {
 	if _, err := m.Seek(off, io.SeekStart); err != nil {
 		return 0, err
 	}

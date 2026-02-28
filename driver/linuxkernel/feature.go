@@ -14,17 +14,17 @@ import (
 	"github.com/friedelschoen/go-wiimote/internal/common"
 )
 
-type Feature interface {
+type feature interface {
 	wiimote.Feature
 
 	fd() common.UnbufferedFile
-	open(dev *Device, kind wiimote.FeatureKind, node string, wr bool) error
+	open(dev *device, kind wiimote.FeatureKind, node string, wr bool) error
 	acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error)
 }
 
 type commonFeature struct {
 	// parent commoniface.device
-	dev *Device
+	dev *device
 	// wether file is opened
 	opened bool
 	// Open file
@@ -54,7 +54,7 @@ func (iface *commonFeature) Opened() bool {
 	return iface.opened
 }
 
-func (iff *commonFeature) open(dev *Device, kind wiimote.FeatureKind, node string, wr bool) error {
+func (iff *commonFeature) open(dev *device, kind wiimote.FeatureKind, node string, wr bool) error {
 	if iff.dev != nil && iff.opened {
 		return nil
 	}
@@ -109,7 +109,7 @@ type rumbleFeature struct {
 	rumbleID    int
 }
 
-func (iface *rumbleFeature) open(dev *Device, kind wiimote.FeatureKind, node string, wr bool) error {
+func (iface *rumbleFeature) open(dev *device, kind wiimote.FeatureKind, node string, wr bool) error {
 	if err := iface.commonFeature.open(dev, kind, node, wr); err != nil {
 		return err
 	}
@@ -169,11 +169,11 @@ func (dev *rumbleFeature) Rumble(state bool) error {
 	return nil
 }
 
-type FeatureCore struct {
+type featureCore struct {
 	rumbleFeature
 }
 
-func (iface *FeatureCore) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureCore) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	if event != C.EV_KEY {
 		return nil, nil
 	}
@@ -218,7 +218,7 @@ func (iface *FeatureCore) acceptEvent(ts time.Time, event, code uint16, value in
 }
 
 // Memory
-func (iface *FeatureCore) Memory() (wiimote.Memory, error) {
+func (iface *featureCore) Memory() (wiimote.Memory, error) {
 	id := filepath.Base(iface.dev.dev.Syspath())
 	path := filepath.Join(debugfs, "hid", id, "eeprom")
 	fd, err := syscall.Open(path, syscall.O_RDONLY, 0)
@@ -226,16 +226,16 @@ func (iface *FeatureCore) Memory() (wiimote.Memory, error) {
 		return nil, err
 	}
 
-	return &Memory{common.UnbufferedFile(fd)}, nil
+	return &memory{common.UnbufferedFile(fd)}, nil
 }
 
-type FeatureAccel struct {
+type featureAccel struct {
 	commonFeature
 
 	accel wiimote.Vec3
 }
 
-func (iface *FeatureAccel) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureAccel) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	if event == C.EV_SYN {
 		var ev wiimote.EventAccel
 		ev.Event = commonEvent{iface, ts}
@@ -258,13 +258,13 @@ func (iface *FeatureAccel) acceptEvent(ts time.Time, event, code uint16, value i
 	return nil, nil
 }
 
-type FeatureIR struct {
+type featureIR struct {
 	commonFeature
 
 	slots [4]wiimote.IRSlot
 }
 
-func (iface *FeatureIR) open(dev *Device, kind wiimote.FeatureKind, node string, wr bool) error {
+func (iface *featureIR) open(dev *device, kind wiimote.FeatureKind, node string, wr bool) error {
 	if err := iface.commonFeature.open(dev, kind, node, wr); err != nil {
 		return err
 	}
@@ -275,7 +275,7 @@ func (iface *FeatureIR) open(dev *Device, kind wiimote.FeatureKind, node string,
 	return nil
 }
 
-func (iface *FeatureIR) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureIR) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	if event == C.EV_SYN {
 		var ev wiimote.EventIR
 		ev.Event = commonEvent{iface, ts}
@@ -308,7 +308,7 @@ func (iface *FeatureIR) acceptEvent(ts time.Time, event, code uint16, value int3
 	return nil, nil
 }
 
-type FeatureMotionPlus struct {
+type featureMotionPlus struct {
 	commonFeature
 
 	//  motion plus normalization
@@ -329,7 +329,7 @@ type FeatureMotionPlus struct {
 // the factor is used to re-calibrate the zero-point of MP data depending on MP
 // input. This is an angoing calibration which modifies the internal state of
 // the x, y and z values.
-func (iface *FeatureMotionPlus) SetMPNormalization(x, y, z, factor int32) {
+func (iface *featureMotionPlus) SetMPNormalization(x, y, z, factor int32) {
 	iface.normalizer.X = x * 100
 	iface.normalizer.Y = y * 100
 	iface.normalizer.Z = z * 100
@@ -345,14 +345,14 @@ func (iface *FeatureMotionPlus) SetMPNormalization(x, y, z, factor int32) {
 // apart from applied calibration, these value are the same as were set
 // previously via SetMPNormalization() and you can feed them back
 // in later.
-func (iface *FeatureMotionPlus) MPNormalization() (x, y, z, factor int32) {
+func (iface *featureMotionPlus) MPNormalization() (x, y, z, factor int32) {
 	return iface.normalizer.X / 100,
 		iface.normalizer.Y / 100,
 		iface.normalizer.Z / 100,
 		iface.normaizeFactor
 }
 
-func (iface *FeatureMotionPlus) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureMotionPlus) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	if event == C.EV_SYN {
 		iface.speed.X -= iface.normalizer.X / 100
 		iface.speed.Y -= iface.normalizer.Y / 100
@@ -395,14 +395,14 @@ func (iface *FeatureMotionPlus) acceptEvent(ts time.Time, event, code uint16, va
 	return nil, nil
 }
 
-type FeatureNunchuck struct {
+type featureNunchuck struct {
 	commonFeature
 
 	stick wiimote.Vec2
 	accel wiimote.Vec3
 }
 
-func (iface *FeatureNunchuck) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureNunchuck) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
 		if value < 0 || value > 2 {
@@ -447,7 +447,7 @@ func (iface *FeatureNunchuck) acceptEvent(ts time.Time, event, code uint16, valu
 	return nil, nil
 }
 
-type FeatureClassicController struct {
+type featureClassicController struct {
 	commonFeature
 
 	stickLeft     wiimote.Vec2
@@ -456,7 +456,7 @@ type FeatureClassicController struct {
 	shoulderRight int32
 }
 
-func (iface *FeatureClassicController) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureClassicController) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
 		if value < 0 || value > 2 {
@@ -532,13 +532,13 @@ func (iface *FeatureClassicController) acceptEvent(ts time.Time, event, code uin
 	return nil, nil
 }
 
-type FeatureBalanceBoard struct {
+type featureBalanceBoard struct {
 	commonFeature
 
 	weights [4]int32
 }
 
-func (iface *FeatureBalanceBoard) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureBalanceBoard) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	if event == C.EV_SYN {
 		var ev wiimote.EventBalanceBoard
 		ev.Event = commonEvent{iface, ts}
@@ -564,13 +564,13 @@ func (iface *FeatureBalanceBoard) acceptEvent(ts time.Time, event, code uint16, 
 	return nil, nil
 }
 
-type FeatureProController struct {
+type featureProController struct {
 	rumbleFeature
 
 	sticks [2]wiimote.Vec2
 }
 
-func (iface *FeatureProController) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureProController) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
 		if value < 0 || value > 2 {
@@ -643,7 +643,7 @@ func (iface *FeatureProController) acceptEvent(ts time.Time, event, code uint16,
 	return nil, nil
 }
 
-type FeatureDrums struct {
+type featureDrums struct {
 	commonFeature
 
 	pad         wiimote.Vec2
@@ -656,7 +656,7 @@ type FeatureDrums struct {
 	hiHat       int32
 }
 
-func (iface *FeatureDrums) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureDrums) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
 		if value < 0 || value > 2 {
@@ -716,7 +716,7 @@ func (iface *FeatureDrums) acceptEvent(ts time.Time, event, code uint16, value i
 	return nil, nil
 }
 
-type FeatureGuitar struct {
+type featureGuitar struct {
 	commonFeature
 
 	stick     wiimote.Vec2
@@ -724,7 +724,7 @@ type FeatureGuitar struct {
 	fretBar   int32
 }
 
-func (iface *FeatureGuitar) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
+func (iface *featureGuitar) acceptEvent(ts time.Time, event, code uint16, value int32) (wiimote.Event, error) {
 	switch event {
 	case C.EV_KEY:
 		if value < 0 || value > 2 {
@@ -783,7 +783,7 @@ func (iface *FeatureGuitar) acceptEvent(ts time.Time, event, code uint16, value 
 	return nil, nil
 }
 
-func FeatureKindFromName(name string) (wiimote.FeatureKind, bool) {
+func featureKindFromName(name string) (wiimote.FeatureKind, bool) {
 	switch name {
 	case "Nintendo Wii Remote":
 		return wiimote.FeatureCore, true
@@ -810,28 +810,28 @@ func FeatureKindFromName(name string) (wiimote.FeatureKind, bool) {
 	}
 }
 
-func FeatureFromName(kind wiimote.FeatureKind) Feature {
+func featureFromName(kind wiimote.FeatureKind) feature {
 	switch kind {
 	case wiimote.FeatureCore:
-		return &FeatureCore{}
+		return &featureCore{}
 	case wiimote.FeatureAccel:
-		return &FeatureAccel{}
+		return &featureAccel{}
 	case wiimote.FeatureIR:
-		return &FeatureIR{}
+		return &featureIR{}
 	case wiimote.FeatureMotionPlus:
-		return &FeatureMotionPlus{}
+		return &featureMotionPlus{}
 	case wiimote.FeatureNunchuck:
-		return &FeatureNunchuck{}
+		return &featureNunchuck{}
 	case wiimote.FeatureClassicController:
-		return &FeatureClassicController{}
+		return &featureClassicController{}
 	case wiimote.FeatureBalanceBoard:
-		return &FeatureBalanceBoard{}
+		return &featureBalanceBoard{}
 	case wiimote.FeatureProController:
-		return &FeatureProController{}
+		return &featureProController{}
 	case wiimote.FeatureDrums:
-		return &FeatureDrums{}
+		return &featureDrums{}
 	case wiimote.FeatureGuitar:
-		return &FeatureGuitar{}
+		return &featureGuitar{}
 	}
 	return nil
 }
@@ -853,7 +853,7 @@ func readEvent(fd common.UnbufferedFile) (*C.struct_input_event, error) {
 	return &ev, nil
 }
 
-func dispatchEvent(iff Feature) (wiimote.Event, error) {
+func dispatchEvent(iff feature) (wiimote.Event, error) {
 	for {
 		input, err := readEvent(iff.fd())
 		if err != nil {

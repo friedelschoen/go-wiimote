@@ -7,7 +7,7 @@ import (
 )
 
 type commonEvent struct {
-	iface     Feature
+	iface     feature
 	timestamp time.Time
 }
 
@@ -19,7 +19,7 @@ func (evt commonEvent) Timestamp() time.Time {
 	return evt.timestamp
 }
 
-func (dev *Device) readUmon(pollEv uint32) (wiimote.Event, error) {
+func (dev *device) readUmon(pollEv uint32) (wiimote.Event, error) {
 	_ = pollEv
 	hotplug := false
 	remove := false
@@ -82,7 +82,7 @@ func (dev *Device) readUmon(pollEv uint32) (wiimote.Event, error) {
 	return nil, nil
 }
 
-func (dev *Device) dispatchEvent(evFd int32, pollEv uint32) (wiimote.Event, error) {
+func (dev *device) dispatchEvent(evFd int32, pollEv uint32) (wiimote.Event, error) {
 	if dev.umon != nil && dev.umon.FD() == int(evFd) {
 		return dev.readUmon(pollEv)
 	}
