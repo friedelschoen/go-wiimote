@@ -11,7 +11,7 @@ import "time"
 // Some devices report common keys as both, extension and core events. In this
 // case the kernel is required to filter these and you should report it as a
 // bug. A single physical key-press should never be reported twice, even on two
-// different interfaces.
+// different features.
 type Key uint
 
 const (
@@ -121,15 +121,15 @@ type Vec3 struct {
 	Z int32 `json:"z"`
 }
 
-// Event interface describes an event fired by Device.Dispatch(),
+// Event feature describes an event fired by Device.Dispatch(),
 // consider using a type-switch to retrieve the specific event type and data
 type Event interface {
-	Interface() Interface
+	Feature() Feature
 	Timestamp() time.Time
 }
 
 // EventKey is fired whenever a key is pressed or released. Valid
-// key-events include all the events reported by the core-interface,
+// key-events include all the events reported by the core-feature,
 // which is normally only LEFT, RIGHT, UP, DOWN, A, B, PLUS, MINUS,
 // HOME, ONE, TWO.
 type EventKey struct {
@@ -182,8 +182,8 @@ type EventMotionPlus struct {
 }
 
 // EventProControllerKey provides button events of the pro-controller
-// and are reported via this interface
-// and not via the core-interface (which only reports core-buttons).
+// and are reported via this feature
+// and not via the core-feature (which only reports core-buttons).
 // Valid buttons include: LEFT, RIGHT, UP, DOWN, PLUS, MINUS, HOME, X,
 // Y, A, B, TR, TL, ZR, ZL, THUMBL, THUMBR.
 // Payload type is struct wii_event_key.
@@ -202,13 +202,13 @@ type EventProControllerMove struct {
 // unplugged), a device-detection finished or some other static data
 // changed which cannot be monitored separately.
 // An application should check what changed by examining the device is
-// testing whether all required interfaces are still available.
+// testing whether all required features are still available.
 // Non-hotplug aware devices may discard this event.
 //
 // This is only returned if you explicitly watched for hotplug events.
 // See Device.Watch().
 //
-// This event is also returned if an interface is closed because the
+// This event is also returned if an feature is closed because the
 // kernel closed our file-descriptor (for whatever reason). This is
 // returned regardless whether you watch for hotplug events or not.
 type EventWatch struct {
@@ -217,7 +217,7 @@ type EventWatch struct {
 
 // EventClassicControllerKey provides Classic Controller key events.
 // Button events of the classic controller are reported via this
-// interface and not via the core-interface (which only reports
+// feature and not via the core-feature (which only reports
 // core-buttons).
 // Valid buttons include: LEFT, RIGHT, UP, DOWN, PLUS, MINUS, HOME, X,
 // Y, A, B, TR, TL, ZR, ZL.
@@ -244,7 +244,7 @@ type EventClassicControllerMove struct {
 
 // EventNunchukKey provides Nunchuk key events.
 // Button events of the nunchuk controller are reported via this
-// interface and not via the core-interface (which only reports
+// feature and not via the core-feature (which only reports
 // core-buttons).
 // Valid buttons include: C, Z
 type EventNunchukKey struct {
@@ -253,7 +253,7 @@ type EventNunchukKey struct {
 
 // EventNunchukMove provides Nunchuk movement events.
 // Movement events of the nunchuk controller are reported via this
-// interface. Payload is of type struct wii_event_abs. The first array
+// feature. Payload is of type struct wii_event_abs. The first array
 // element contains the x/y positions of the analog stick. The second
 // array element contains the accelerometer information.
 type EventNunchukMove struct {
@@ -301,16 +301,16 @@ type EventGuitarMove struct {
 	FretBar   int32 `json:"fret_bar"`
 }
 
-// EventInterface is provided when a interface is added.
-type EventInterface struct {
+// EventFeature is provided when a feature is added.
+type EventFeature struct {
 	Event
-	Kind InterfaceKind
+	Kind FeatureKind
 }
 
 // EventGone provides Removal Event.
 // This event is sent whenever the device was removed. No payload is provided.
 // Non-hotplug aware applications may discard this event.
-// Optionally Interface can be set, if nil the whole device is removed.
+// Optionally Feature can be set, if nil the whole device is removed.
 type EventGone struct {
 	Event
 }

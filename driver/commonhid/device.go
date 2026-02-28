@@ -12,12 +12,12 @@ import (
 )
 
 type commonEvent struct {
-	iface     wiimote.Interface
+	iface     wiimote.Feature
 	timestamp time.Time
 }
 
-func (e commonEvent) Interface() wiimote.Interface { return e.iface }
-func (e commonEvent) Timestamp() time.Time         { return e.timestamp }
+func (e commonEvent) Feature() wiimote.Feature { return e.iface }
+func (e commonEvent) Timestamp() time.Time     { return e.timestamp }
 
 type ifaceCore struct {
 	dev    *Device
@@ -28,8 +28,8 @@ func (i *ifaceCore) Close() error {
 	i.opened = false
 	return nil
 }
-func (i *ifaceCore) Kind() wiimote.InterfaceKind {
-	return wiimote.InterfaceCore
+func (i *ifaceCore) Kind() wiimote.FeatureKind {
+	return wiimote.FeatureCore
 }
 func (i *ifaceCore) Device() wiimote.Device {
 	return i.dev
@@ -43,8 +43,8 @@ type Device struct {
 
 	transport Transport
 
-	openIfs  map[wiimote.InterfaceKind]wiimote.Interface
-	availIfs wiimote.InterfaceKind
+	openIfs  map[wiimote.FeatureKind]wiimote.Feature
+	availIfs wiimote.FeatureKind
 
 	// last known button state (16-bit)
 	btnPrev uint16
@@ -61,8 +61,8 @@ type Transport interface {
 func NewDevice(transport Transport) wiimote.Device {
 	d := &Device{
 		transport:  transport,
-		openIfs:    make(map[wiimote.InterfaceKind]wiimote.Interface),
-		availIfs:   wiimote.InterfaceCore, // minimal promise for now
+		openIfs:    make(map[wiimote.FeatureKind]wiimote.Feature),
+		availIfs:   wiimote.FeatureCore, // minimal promise for now
 		moreEvents: make(chan wiimote.Event, 64),
 	}
 	d.Poller = common.NewPoller(d)
@@ -75,26 +75,26 @@ func (d *Device) String() string {
 	return "wiimote-device (commonhid)"
 }
 
-func (d *Device) OpenInterfaces(ifaces wiimote.InterfaceKind, wr bool) error {
+func (d *Device) OpenFeatures(ifaces wiimote.FeatureKind, wr bool) error {
 	_ = wr // transport might be read-only or read-write; we don't enforce here
 
 	// For now: only Core is implemented.
-	if ifaces&wiimote.InterfaceCore != 0 {
-		if _, ok := d.openIfs[wiimote.InterfaceCore]; !ok {
+	if ifaces&wiimote.FeatureCore != 0 {
+		if _, ok := d.openIfs[wiimote.FeatureCore]; !ok {
 			core := &ifaceCore{dev: d, opened: true}
-			d.openIfs[wiimote.InterfaceCore] = core
+			d.openIfs[wiimote.FeatureCore] = core
 
-			// optional: notify interface appeared
-			d.moreEvents <- &wiimote.EventInterface{
+			// optional: notify feature appeared
+			d.moreEvents <- &wiimote.EventFeature{
 				Event: commonEvent{iface: core, timestamp: time.Now()},
-				Kind:  wiimote.InterfaceCore,
+				Kind:  wiimote.FeatureCore,
 			}
 		}
 	}
 
 	// If caller asked for more: return a meaningful error, but keep Core opened.
 	var errs []error
-	want := ifaces &^ wiimote.InterfaceCore
+	want := ifaces &^ wiimote.FeatureCore
 	if want != 0 {
 		errs = append(errs, os.ErrInvalid)
 	}
@@ -105,11 +105,11 @@ func (d *Device) FD() int {
 	return d.transport.FD()
 }
 
-func (d *Device) Interface(kind wiimote.InterfaceKind) wiimote.Interface {
+func (d *Device) Feature(kind wiimote.FeatureKind) wiimote.Feature {
 	return d.openIfs[kind]
 }
 
-func (d *Device) Available(iface wiimote.InterfaceKind) bool {
+func (d *Device) Available(iface wiimote.FeatureKind) bool {
 	return d.availIfs&iface != 0
 }
 
@@ -201,7 +201,7 @@ func (d *Device) enqueueButtonDeltas(ts time.Time, btn uint16) {
 	}
 	d.btnPrev = btn
 
-	core, _ := d.openIfs[wiimote.InterfaceCore].(*ifaceCore)
+	core, _ := d.openIfs[wiimote.FeatureCore].(*ifaceCore)
 
 	emit := func(k wiimote.Key, pressed bool) {
 		state := wiimote.StateReleased

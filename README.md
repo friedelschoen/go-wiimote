@@ -83,8 +83,8 @@ if err != nil {
 // freeing is not mandatory and is done automatically by GC.
 defer dev.Free()
 
-// open interfaces, we're only interested in core functionality.
-if err := dev.Open(wiimote.InterfaceCore); err != nil {
+// open features, we're only interested in core functionality.
+if err := dev.Open(wiimote.FeatureCore); err != nil {
     log.Fatalf("error: unable to open device: %s", err)
 }
 

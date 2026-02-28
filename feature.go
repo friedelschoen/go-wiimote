@@ -4,14 +4,14 @@ import (
 	"io"
 )
 
-type Interface interface {
+type Feature interface {
 	io.Closer
-	// Type of this interface
-	Kind() InterfaceKind
-	// Device is the parent of this interface. When opened, a device is bound to this interface.
+	// Type of this feature
+	Kind() FeatureKind
+	// Device is the parent of this feature. When opened, a device is bound to this feature.
 	Device() Device
-	// Opened returns a bitmask of opened interfaces. Interfaces may be closed due to
-	// error-conditions at any time. However, interfaces are never opened
+	// Opened returns a bitmask of opened features. Features may be closed due to
+	// error-conditions at any time. However, features are never opened
 	// automatically.
 	//
 	// You will get notified whenever this bitmask changes, except on explicit
@@ -19,25 +19,25 @@ type Interface interface {
 	Opened() bool
 }
 
-type RumbleInterface interface {
-	Interface
+type RumbleFeature interface {
+	Feature
 
 	// Rumble sets the rumble motor.
 	//
-	// This requires the core-interface to be opened in writable mode.
+	// This requires the core-feature to be opened in writable mode.
 	Rumble(state bool) error
 }
 
-type MemoryInterface interface {
-	Interface
+type MemoryFeature interface {
+	Feature
 
 	Memory() (Memory, error)
 }
 
-type MotionPlusInterface interface {
-	Interface
+type MotionPlusFeature interface {
+	Feature
 	// SetMPNormalization sets Motion-Plus normalization and calibration values. The Motion-Plus sensor is very
-	// sensitive and may return really crappy values. This interfaces allows to
+	// sensitive and may return really crappy values. This features allows to
 	// apply 3 absolute offsets x, y and z which are subtracted from any MP data
 	// before it is returned to the application. That is, if you set these values
 	// to 0, this has no effect (which is also the initial state).
@@ -61,17 +61,17 @@ type MotionPlusInterface interface {
 	MPNormalization() (x, y, z, factor int32)
 }
 
-type InterfaceKind uint
+type FeatureKind uint
 
 const (
-	InterfaceCore InterfaceKind = 1 << iota
-	InterfaceAccel
-	InterfaceIR
-	InterfaceMotionPlus
-	InterfaceNunchuck
-	InterfaceClassicController
-	InterfaceBalanceBoard
-	InterfaceProController
-	InterfaceDrums
-	InterfaceGuitar
+	FeatureCore FeatureKind = 1 << iota
+	FeatureAccel
+	FeatureIR
+	FeatureMotionPlus
+	FeatureNunchuck
+	FeatureClassicController
+	FeatureBalanceBoard
+	FeatureProController
+	FeatureDrums
+	FeatureGuitar
 )

@@ -48,7 +48,7 @@ func loadMapping(r io.Reader) map[wiimote.Key]uinput.Key {
 func watchDevice(dev wiimote.Device, mapping map[wiimote.Key]uinput.Key) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
-	if err := dev.OpenInterfaces(wiimote.InterfaceCore, true); err != nil {
+	if err := dev.OpenFeatures(wiimote.FeatureCore, true); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
@@ -59,7 +59,7 @@ func watchDevice(dev wiimote.Device, mapping map[wiimote.Key]uinput.Key) {
 	defer kb.Close()
 	var leds wiimote.Led
 
-	rumbleif := dev.Interface(wiimote.InterfaceCore).(wiimote.RumbleInterface)
+	rumbleif := dev.Feature(wiimote.FeatureCore).(wiimote.RumbleFeature)
 	for {
 		ev, err := dev.Wait(-1)
 		if err != nil {

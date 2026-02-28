@@ -17,12 +17,12 @@ func watchDevice(dev wiimote.Device) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
 
-	// coreif := wiimote.InterfaceCore{}
-	if err := dev.OpenInterfaces(wiimote.InterfaceCore, true); err != nil {
+	// coreif := wiimote.FeatureCore{}
+	if err := dev.OpenFeatures(wiimote.FeatureCore, true); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
-	mif := dev.Interface(wiimote.InterfaceCore).(wiimote.MemoryInterface)
+	mif := dev.Feature(wiimote.FeatureCore).(wiimote.MemoryFeature)
 
 	f, err := mif.Memory()
 	if err != nil {

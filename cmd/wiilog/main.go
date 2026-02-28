@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	openIf = flag.String("interfaces", "", "interfaces to use")
+	openIf = flag.String("features", "", "features to use")
 )
 
 type eventBlock struct {
@@ -24,37 +24,37 @@ type eventBlock struct {
 	Event     wiimote.Event `json:"event"`
 	Id        string        `json:"id"`
 	Timestamp time.Time     `json:"timestamp"`
-	Interface string        `json:"interface"`
+	Feature   string        `json:"feature"`
 }
 
 func watchDevice(dev wiimote.Device, mu *sync.Mutex) {
 	fmt.Printf("new device: %s\n", dev.String())
 	time.Sleep(100 * time.Millisecond)
-	var ifs wiimote.InterfaceKind
-	ifs |= wiimote.InterfaceCore
+	var ifs wiimote.FeatureKind
+	ifs |= wiimote.FeatureCore
 	for name := range strings.SplitSeq(*openIf, ",") {
 		switch name {
 		case "accel":
-			ifs |= wiimote.InterfaceAccel
+			ifs |= wiimote.FeatureAccel
 		case "bb", "balanceboard":
-			ifs |= wiimote.InterfaceBalanceBoard
+			ifs |= wiimote.FeatureBalanceBoard
 		case "cc", "classiccontroller":
-			ifs |= wiimote.InterfaceClassicController
+			ifs |= wiimote.FeatureClassicController
 		case "drums":
-			ifs |= wiimote.InterfaceDrums
+			ifs |= wiimote.FeatureDrums
 		case "guitar":
-			ifs |= wiimote.InterfaceGuitar
+			ifs |= wiimote.FeatureGuitar
 		case "ir":
-			ifs |= wiimote.InterfaceIR
+			ifs |= wiimote.FeatureIR
 		case "mp", "motionplus":
-			ifs |= wiimote.InterfaceMotionPlus
+			ifs |= wiimote.FeatureMotionPlus
 		case "nunchuck":
-			ifs |= wiimote.InterfaceNunchuck
+			ifs |= wiimote.FeatureNunchuck
 		case "pc", "procontroller":
-			ifs |= wiimote.InterfaceProController
+			ifs |= wiimote.FeatureProController
 		}
 	}
-	if err := dev.OpenInterfaces(ifs, true); err != nil {
+	if err := dev.OpenFeatures(ifs, true); err != nil {
 		fmt.Fprintf(os.Stderr, "error: unable to open device: %s", err)
 	}
 
@@ -72,8 +72,8 @@ func watchDevice(dev wiimote.Device, mu *sync.Mutex) {
 		block.Event = ev
 		block.Id = dev.Syspath()
 		block.Timestamp = ev.Timestamp()
-		if ev.Interface() != nil {
-			block.Interface = ev.Interface().Kind().String()
+		if ev.Feature() != nil {
+			block.Feature = ev.Feature().Kind().String()
 		}
 		b, err := json.Marshal(block)
 		if err != nil {

@@ -17,7 +17,7 @@ import (
 const debugfs = "/sys/kernel/debug"
 
 // Device describes the communication with a single device. That is, you
-// create one for each device you use. All sub-interfaces are opened on this
+// create one for each device you use. All sub-features are opened on this
 // object.
 type Device struct {
 	wiimote.Poller[wiimote.Event]
@@ -32,10 +32,10 @@ type Device struct {
 	//  udev monitor
 	umon wiimote.DeviceMonitor
 
-	// open interfaces -- kind -> interface
-	openIfs map[wiimote.InterfaceKind]Interface
-	// available interfaces -- kind -> name
-	availIfs map[wiimote.InterfaceKind]string
+	// open features -- kind -> feature
+	openIfs map[wiimote.FeatureKind]Feature
+	// available features -- kind -> name
+	availIfs map[wiimote.FeatureKind]string
 	// device type attribute
 	devtypeAttr string
 	// extension attribute
@@ -48,7 +48,7 @@ type Device struct {
 	moreEvents chan wiimote.Event
 }
 
-// NewDevice creates a new device object. No interfaces on the device are opened by
+// NewDevice creates a new device object. No features on the device are opened by
 // default.
 //
 // syspath must be a valid path to a wiimote device, either
@@ -73,8 +73,8 @@ func NewDevice(dev wiimote.DeviceInfo, newMonitor func() wiimote.DeviceMonitor, 
 	d.extensionAttr = path.Join(syspath, "extension")
 
 	d.moreEvents = make(chan wiimote.Event, 128)
-	d.availIfs = make(map[wiimote.InterfaceKind]string)
-	d.openIfs = make(map[wiimote.InterfaceKind]Interface)
+	d.availIfs = make(map[wiimote.FeatureKind]string)
+	d.openIfs = make(map[wiimote.FeatureKind]Feature)
 
 	var err error
 	d.efd, err = syscall.EpollCreate1(syscall.EPOLL_CLOEXEC)
@@ -119,7 +119,7 @@ func NewDevice(dev wiimote.DeviceInfo, newMonitor func() wiimote.DeviceMonitor, 
 
 // Scan the device \dev for child input devices and update our device-node
 // cache with the new information. This is called during device setup to
-// find all /dev/input/eventX nodes for all currently available interfaces.
+// find all /dev/input/eventX nodes for all currently available features.
 // We also cache attribute paths for sub-devices like LEDs or batteries.
 //
 // When called during hotplug-events, this updates all currently known
@@ -169,10 +169,10 @@ func (dev *Device) readNodes() error {
 				if node == "" {
 					continue
 				}
-				kind, ok := InterfaceKindFromName(prevIf)
+				kind, ok := FeatureKindFromName(prevIf)
 				if ok {
 					dev.availIfs[kind] = node
-					dev.moreEvents <- &wiimote.EventInterface{
+					dev.moreEvents <- &wiimote.EventFeature{
 						Event: commonEvent{
 							timestamp: time.Now(),
 						},
@@ -224,21 +224,21 @@ func (dev *Device) Syspath() string {
 	return dev.dev.Syspath()
 }
 
-// OpenInterfaces all the requested interfaces. If InterfaceWritable is also set,
-// the interfaces are opened with write-access. Note that interfaces that are
+// OpenFeatures all the requested features. If FeatureWritable is also set,
+// the features are opened with write-access. Note that features that are
 // already opened are ignored and not touched.
-// If any interface fails to open, this function still tries to open the other
-// requested interfaces and then returns the error afterwards. Hence, if this
+// If any feature fails to open, this function still tries to open the other
+// requested features and then returns the error afterwards. Hence, if this
 // function fails, you should use Opened() to get a bitmask of opened
-// interfaces and see which failed (if that is of interest).
+// features and see which failed (if that is of interest).
 //
-// Note that interfaces may be closed automatically during runtime if the
-// kernel removes the interface or on error conditions. You always get an
+// Note that features may be closed automatically during runtime if the
+// kernel removes the feature or on error conditions. You always get an
 // EventWatch event which you should react on. This is returned
 // regardless whether Watch() was enabled or not.
-func (dev *Device) OpenInterfaces(ifaces wiimote.InterfaceKind, wr bool) error {
+func (dev *Device) OpenFeatures(ifaces wiimote.FeatureKind, wr bool) error {
 	var errs []error
-	for kind := wiimote.InterfaceCore; kind <= wiimote.InterfaceGuitar; kind <<= 1 {
+	for kind := wiimote.FeatureCore; kind <= wiimote.FeatureGuitar; kind <<= 1 {
 		if ifaces&kind == 0 {
 			continue
 		}
@@ -246,7 +246,7 @@ func (dev *Device) OpenInterfaces(ifaces wiimote.InterfaceKind, wr bool) error {
 		if !ok {
 			continue
 		}
-		iface := InterfaceFromName(kind)
+		iface := FeatureFromName(kind)
 		if err := iface.open(dev, kind, node, wr); err != nil {
 			errs = append(errs, err)
 			continue
@@ -256,8 +256,8 @@ func (dev *Device) OpenInterfaces(ifaces wiimote.InterfaceKind, wr bool) error {
 	return errors.Join(errs...)
 }
 
-// Interface receives an interface and returns nil this interface is not opened
-func (dev *Device) Interface(kind wiimote.InterfaceKind) wiimote.Interface {
+// Feature receives an feature and returns nil this feature is not opened
+func (dev *Device) Feature(kind wiimote.FeatureKind) wiimote.Feature {
 	iface, ok := dev.openIfs[kind]
 	if !ok {
 		return nil
@@ -269,7 +269,7 @@ func (dev *Device) Interface(kind wiimote.InterfaceKind) wiimote.Interface {
 // guaranteed to be present on the hardware at this time. If you watch your
 // device for hotplug events you will get notified whenever this bitmask changes.
 // See the WatchEvent event for more information.
-func (dev *Device) Available(iface wiimote.InterfaceKind) bool {
+func (dev *Device) Available(iface wiimote.FeatureKind) bool {
 	_, ok := dev.availIfs[iface]
 	return ok
 }
@@ -317,7 +317,7 @@ func (dev *Device) Poll() (wiimote.Event, bool, error) {
 
 // LED reads the LED state for the given LED.
 //
-// LEDs are a static interface that does not have to be opened first.
+// LEDs are a static feature that does not have to be opened first.
 func (dev *Device) LED() (result wiimote.Led, _ error) {
 	for i := range 4 {
 		cont, err := os.ReadFile(dev.ledAttrs[i])
@@ -333,7 +333,7 @@ func (dev *Device) LED() (result wiimote.Led, _ error) {
 
 // SetLED writes the LED state for the given LED.
 //
-// LEDs are a static interface that does not have to be opened first.
+// LEDs are a static feature that does not have to be opened first.
 func (dev *Device) SetLED(leds wiimote.Led) error {
 	for i := range 4 {
 		state := leds&(1<<i) != 0
@@ -351,7 +351,7 @@ func (dev *Device) SetLED(leds wiimote.Led) error {
 
 // Battery reads the current battery capacity. The capacity is represented as percentage, thus the return value is an integer between 0 and 100.
 //
-// Batteries are a static interface that does not have to be opened first.
+// Batteries are a static feature that does not have to be opened first.
 func (dev *Device) Battery() (uint, error) {
 	cont, err := os.ReadFile(dev.batteryAttr)
 	if err != nil {
@@ -365,7 +365,7 @@ func (dev *Device) Battery() (uint, error) {
 // DevType returns the device type. If the device type cannot be determined,
 // it returns "unknown" and the corresponding error.
 //
-// This is a static interface that does not have to be opened first.
+// This is a static feature that does not have to be opened first.
 func (dev *Device) DevType() (string, error) {
 	cont, err := os.ReadFile(dev.devtypeAttr)
 	return strings.TrimSpace(string(cont)), err
@@ -374,7 +374,7 @@ func (dev *Device) DevType() (string, error) {
 // Extension returns the extension type. If no extension is connected or the
 // extension cannot be determined, it returns a string "none" and the corresponding error.
 //
-// This is a static interface that does not have to be opened first.
+// This is a static feature that does not have to be opened first.
 func (dev *Device) Extension() (string, error) {
 	cont, err := os.ReadFile(dev.extensionAttr)
 	return strings.TrimSpace(string(cont)), err

@@ -18,7 +18,7 @@ var HorizScrollSpeed = flag.Float64("hscrollspeed", 0.01, "Set the horizontal sc
 
 func watchDevice(dev wiimote.Device) {
 	bat, _ := dev.Battery()
-	fmt.Printf("new wiimote at %s with %d%% battery, cap=%v\n", dev.Syspath(), bat, dev.Available(wiimote.InterfaceIR))
+	fmt.Printf("new wiimote at %s with %d%% battery, cap=%v\n", dev.Syspath(), bat, dev.Available(wiimote.FeatureIR))
 
 	mouse, err := uinput.CreateMouse("wiimote-mouse",
 		uinput.Range{Min: -340, Max: 340, Res: 72},
@@ -38,7 +38,7 @@ func watchDevice(dev wiimote.Device) {
 	}
 	defer mouse.Close()
 
-	if err := dev.OpenInterfaces(wiimote.InterfaceCore|wiimote.InterfaceAccel|wiimote.InterfaceIR, true); err != nil {
+	if err := dev.OpenFeatures(wiimote.FeatureCore|wiimote.FeatureAccel|wiimote.FeatureIR, true); err != nil {
 		log.Fatalf("error: unable to open device: %v", err)
 	}
 

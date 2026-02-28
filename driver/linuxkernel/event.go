@@ -7,11 +7,11 @@ import (
 )
 
 type commonEvent struct {
-	iface     Interface
+	iface     Feature
 	timestamp time.Time
 }
 
-func (evt commonEvent) Interface() wiimote.Interface {
+func (evt commonEvent) Feature() wiimote.Feature {
 	return evt.iface
 }
 
