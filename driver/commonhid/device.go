@@ -153,8 +153,7 @@ func (d *device) Feature(kind wiimote.FeatureKind) wiimote.Feature {
 }
 
 func (d *device) Available(iface wiimote.FeatureKind) bool {
-	const nonExtension = wiimote.FeatureCore | wiimote.FeatureAccel | wiimote.FeatureIR | wiimote.FeatureSpeaker
-	if iface&nonExtension != 0 {
+	if iface&wiimote.FeatureSetCore != 0 {
 		return true
 	}
 	// TODO: if extension
@@ -315,7 +314,28 @@ func (d *device) readEvent() {
 			Event: commonEvent{iface: d, timestamp: ts},
 			Accel: accel,
 		}
-		// TODO: IR event
+
+		var slots [4]wiimote.IRSlot
+		setSlot := func(slot *wiimote.IRSlot, r []byte) {
+			slot.X = int32(r[0]) | (int32(r[2]>>4)&0x03)<<8
+			slot.Y = int32(r[1]) | (int32(r[2]>>6)&0x03)<<8
+			slot.Size = r[2] & 0x0f
+			slot.Bounds.Min.X = int32(r[3] & 0x7f)
+			slot.Bounds.Min.Y = int32(r[4] & 0x7f)
+			slot.Bounds.Max.X = int32(r[5] & 0x7f)
+			slot.Bounds.Max.Y = int32(r[6] & 0x7f)
+			slot.Intensity = r[8]
+		}
+
+		setSlot(&slots[0], d.interleaved[0:])
+		setSlot(&slots[1], d.interleaved[9:])
+		setSlot(&slots[2], report[0:])
+		setSlot(&slots[3], report[9:])
+
+		d.moreEvents <- &wiimote.EventIR{
+			Event: commonEvent{iface: d, timestamp: ts},
+			Slots: slots,
+		}
 	}
 
 	// TODO: extensions
@@ -374,9 +394,16 @@ func (d *device) emitIRBasic(ts time.Time, report []byte) {
 
 func (d *device) emitIRExtended(ts time.Time, report []byte) {
 	var slots [4]wiimote.IRSlot
-	slots[0].X = int32(report[0]) | (int32(report[2]>>4)&0x03)<<8
-	slots[0].Y = int32(report[1]) | (int32(report[2]>>6)&0x03)<<8
-	slots[0].Size = report[2] & 0x0f
+	setSlot := func(slot *wiimote.IRSlot, r []byte) {
+		slot.X = int32(r[0]) | (int32(r[2]>>4)&0x03)<<8
+		slot.Y = int32(r[1]) | (int32(r[2]>>6)&0x03)<<8
+		slot.Size = r[2] & 0x0f
+	}
+
+	setSlot(&slots[0], report[0:])
+	setSlot(&slots[1], report[3:])
+	setSlot(&slots[2], report[6:])
+	setSlot(&slots[3], report[9:])
 
 	d.moreEvents <- &wiimote.EventIR{
 		Event: commonEvent{iface: d, timestamp: ts},

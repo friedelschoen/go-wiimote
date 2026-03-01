@@ -1,6 +1,8 @@
 package wiimote
 
-import "time"
+import (
+	"time"
+)
 
 // Key Event Identifiers
 //
@@ -110,6 +112,27 @@ type Vec3 struct {
 	Z int32 `json:"z"`
 }
 
+// Rect represents a 2D floating point rectangle, streched over an Min and Max point.
+type Rect struct {
+	Min, Max Vec2
+}
+
+func (r Rect) Contains(p Vec2) bool {
+	return p.X >= r.Min.X && p.X < r.Max.X && p.Y >= r.Min.Y && p.Y < r.Max.Y
+}
+
+func (r Rect) Width() int32 {
+	return r.Max.X - r.Min.X
+}
+
+func (r Rect) Height() int32 {
+	return r.Max.Y - r.Min.Y
+}
+
+func (r Rect) Empty() bool {
+	return r.Max.X <= r.Min.X || r.Max.Y <= r.Min.Y
+}
+
 // Event feature describes an event fired by Device.Dispatch(),
 // consider using a type-switch to retrieve the specific event type and data
 type Event interface {
@@ -149,7 +172,9 @@ type EventIR struct {
 // IRSlot describes Infra-Red Tracking on a WiiMote
 type IRSlot struct {
 	Vec2
-	Size uint8
+	Size      uint8
+	Bounds    Rect
+	Intensity uint8
 }
 
 // Valid returns wether this slot holds a valid source. If not it has no track and is considered disabled.
