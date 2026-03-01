@@ -863,7 +863,7 @@ func dispatchEvent(iff feature) (wiimote.Event, error) {
 			}, nil
 		}
 		if input == nil {
-			return nil, common.ErrPollAgain
+			return nil, common.ErrWouldBlock
 		}
 		ts := cTime(input.time)
 		eventType := uint16(input._type)

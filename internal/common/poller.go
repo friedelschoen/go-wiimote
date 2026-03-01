@@ -2,16 +2,17 @@ package common
 
 import (
 	"errors"
+	"fmt"
 	"log"
-	"syscall"
 	"time"
 
 	"github.com/friedelschoen/go-wiimote"
 	"golang.org/x/sys/unix"
 )
 
-// ErrPollAgain is returned by a PollDriver to mark the poll invalid.
-var ErrPollAgain = errors.New("invalid polling, should retrying")
+// ErrWouldBlock means: Poll() has no event available *right now*.
+// The poller should wait for readability and retry.
+var ErrWouldBlock = errors.New("would block; wait readable and retry")
 
 // pollerDriver defines a source that can be polled for events or data.
 type pollerDriver[T any] interface {
@@ -19,14 +20,13 @@ type pollerDriver[T any] interface {
 	// Poll() is expected to return data immediately.
 	FD() int
 
-	// Poll attempts to retrieve an event or data.
+	// Poll attempts to retrieve an event or data without blocking.
 	//
 	// Return values:
-	//   T:     the retrieved data (invalid if error == ErrRetry)
-	//   bool:  indicates whether more data is immediately available without
-	//          waiting for I/O readiness
-	//   error: nil on success. If ErrRetry is returned, the call should be
-	//          repeated without waiting. Any other error aborts the attempt.
+	//   T:     the retrieved data (invalid if err == ErrWouldBlock)
+	//   bool:  indicates whether more data is immediately available without waiting
+	//   error: nil on success. ErrWouldBlock means "no event right now".
+	//          Any other error aborts the attempt.
 	Poll() (T, bool, error)
 }
 
@@ -37,66 +37,59 @@ type poller[T any] struct {
 	wait bool
 }
 
-// Newpoller creates a new poller for the given monitor.
-// The poller initially assumes that Poll() should be called without waiting.
+// NewPoller creates a new poller for the given driver.
+// The poller initially assumes Poll() should be called without waiting.
 func NewPoller[T any](drv pollerDriver[T]) wiimote.Poller[T] {
-	return &poller[T]{
-		drv: drv,
-		fd:  -1,
-	}
+	return &poller[T]{drv: drv, fd: -1}
 }
 
 func (p *poller[T]) Poll() (T, bool, error) {
 	return p.drv.Poll()
 }
 
+// WaitReadable waits until the driver FD is readable or a timeout passes.
+// timeout < 0 means "wait forever".
 func (p *poller[T]) WaitReadable(timeout time.Duration) error {
-	// Pak de fd vers; caching is fragiel als de driver fd’s kan vervangen.
-	fd := p.drv.FD()
-	p.fd = fd
-
-	if fd < 0 {
-		// Driver heeft (nog) geen pollbare fd
+	if p.fd < 0 {
+		p.fd = p.drv.FD()
+	}
+	if p.fd < 0 {
+		// Driver does not provide an FD; caller must rely on retry.
 		return nil
 	}
 
 	fds := []unix.PollFd{{
-		Fd:     int32(fd),
+		Fd:     int32(p.fd),
 		Events: unix.POLLIN,
 	}}
 
-	dur := -1
+	ms := -1
 	if timeout >= 0 {
-		dur = int(timeout.Milliseconds())
+		ms = int(timeout.Milliseconds())
 	}
 
 	for {
-		n, err := unix.Poll(fds, dur)
+		n, err := unix.Poll(fds, ms)
 		if err != nil {
-			if err == syscall.EINTR {
+			if errors.Is(err, unix.EINTR) {
+				// interrupted by signal; retry
 				continue
 			}
-			p.fd = -1
 			return err
 		}
+
+		// timeout
 		if n == 0 {
-			// timeout
 			return nil
 		}
-		break
-	}
 
-	re := fds[0].Revents
-	if re&(unix.POLLNVAL) != 0 {
-		// fd ongeldig
-		p.fd = -1
-		return unix.EBADF
+		re := fds[0].Revents
+		if re&(unix.POLLERR|unix.POLLHUP|unix.POLLNVAL) != 0 {
+			return fmt.Errorf("poll revents=%#x", re)
+		}
+		// POLLIN (or friends) means: readable
+		return nil
 	}
-	if re&(unix.POLLERR|unix.POLLHUP) != 0 {
-		// device hangup of error: laat caller beslissen wat te doen
-		return unix.EIO
-	}
-	return nil
 }
 
 func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
@@ -107,48 +100,56 @@ func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
 				return zero, err
 			}
 		}
-		ev, moredata, err := p.drv.Poll()
-		p.wait = !moredata
-		if errors.Is(err, ErrPollAgain) {
-			time.Sleep(10 * time.Millisecond)
+
+		ev, more, err := p.drv.Poll()
+		switch {
+		case err == nil:
+			p.wait = !more
+			return ev, nil
+
+		case errors.Is(err, ErrWouldBlock):
+			// nothing available now; next iteration should wait for readability.
+			p.wait = true
 			continue
+
+		default:
+			// hard error
+			var zero T
+			return zero, err
 		}
-		return ev, err
 	}
 }
 
 func (p *poller[T]) drain(yield func(T)) {
 	for {
-		ev, _, err := p.drv.Poll()
-		if errors.Is(err, ErrPollAgain) {
-			time.Sleep(10 * time.Millisecond)
+		ev, more, err := p.drv.Poll()
+		switch {
+		case err == nil:
+			yield(ev)
+			if !more {
+				return
+			}
 			continue
-		}
-		if err != nil {
+
+		case errors.Is(err, ErrWouldBlock):
+			return
+
+		default:
 			log.Printf("error while polling for event: %v", err)
-			continue
+			return
 		}
-		yield(ev)
 	}
 }
 
 func (p *poller[T]) Handle(yield func(T)) error {
-	p.drain(yield)
 	for {
-		if p.wait {
-			if err := p.WaitReadable(-1); err != nil {
-				return err
-			}
-		}
-		if p.fd < 0 {
-			time.Sleep(100 * time.Millisecond)
-		}
 		p.drain(yield)
+		if err := p.WaitReadable(-1); err != nil {
+			return err
+		}
 	}
 }
 
 func (p *poller[T]) Stream(ch chan<- T) {
-	p.Handle(func(ev T) {
-		ch <- ev
-	})
+	p.Handle(func(ev T) { ch <- ev })
 }

@@ -312,7 +312,7 @@ func (dev *device) Poll() (wiimote.Event, bool, error) {
 		}
 	}
 
-	return nil, false, common.ErrPollAgain
+	return nil, false, common.ErrWouldBlock
 }
 
 // LED reads the LED state for the given LED.

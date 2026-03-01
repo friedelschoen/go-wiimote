@@ -185,7 +185,7 @@ func (d *device) Extension() (string, error) {
 func (d *device) Poll() (wiimote.Event, bool, error) {
 	select {
 	case ev := <-d.moreEvents:
-		return ev, true, nil
+		return ev, len(d.moreEvents) > 0, nil
 	default:
 	}
 
@@ -193,9 +193,9 @@ func (d *device) Poll() (wiimote.Event, bool, error) {
 
 	select {
 	case ev := <-d.moreEvents:
-		return ev, true, nil
+		return ev, len(d.moreEvents) > 0, nil
 	default:
-		return nil, false, common.ErrPollAgain
+		return nil, false, common.ErrWouldBlock
 	}
 }
 

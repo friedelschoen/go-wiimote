@@ -47,7 +47,7 @@ func TestPollerWait_RetriesOnErrPollAgain(t *testing.T) {
 	d := &fakeDriver[int]{
 		fd: -1, // voorkomt unix.Poll pad als dontwait false zou worden
 		steps: []pollStep[int]{
-			{ev: 0, cont: false, err: ErrPollAgain},
+			{ev: 0, cont: false, err: ErrWouldBlock},
 			{ev: 42, cont: false, err: nil},
 		},
 	}

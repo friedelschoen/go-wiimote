@@ -117,10 +117,10 @@ func (mon *WiimoteMonitor) Poll() (wiimote.DeviceInfo, bool, error) {
 
 	dev := mon.monitor.ReceiveDevice()
 	if dev == nil {
-		return nil, false, common.ErrPollAgain
+		return nil, false, common.ErrWouldBlock
 	}
 	if (dev.Action() != "" && dev.Action() != "add") || dev.Driver() != "wiimote" || dev.Subsystem() != "hid" {
-		return nil, false, common.ErrPollAgain
+		return nil, false, common.ErrWouldBlock
 	}
 	time.Sleep(50 * time.Millisecond)
 	return dev, false, nil
