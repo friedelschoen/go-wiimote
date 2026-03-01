@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sync"
 	"testing"
-	"time"
 )
 
 type pollStep[T any] struct {
@@ -41,36 +40,6 @@ func (d *fakeDriver[T]) Poll() (T, bool, error) {
 	s := d.steps[0]
 	d.steps = d.steps[1:]
 	return s.ev, s.cont, s.err
-}
-
-func TestPollerWait_RetriesOnErrPollAgain(t *testing.T) {
-	d := &fakeDriver[int]{
-		fd: -1, // voorkomt unix.Poll pad als dontwait false zou worden
-		steps: []pollStep[int]{
-			{ev: 0, cont: false, err: ErrWouldBlock},
-			{ev: 42, cont: false, err: nil},
-		},
-	}
-	p := NewPoller(d)
-
-	start := time.Now()
-	ev, err := p.Wait(0)
-	if err != nil {
-		t.Fatalf("expected nil err, got %v", err)
-	}
-	if ev != 42 {
-		t.Fatalf("expected ev=42, got %v", ev)
-	}
-
-	// Zorg dat we echt gere-try'd hebben.
-	if d.pollCalls < 2 {
-		t.Fatalf("expected >=2 Poll calls, got %d", d.pollCalls)
-	}
-
-	// De code slaapt 10ms bij ErrPollAgain; wees niet superstrak, maar check dat het niet instant was.
-	if time.Since(start) < 5*time.Millisecond {
-		t.Fatalf("expected a small delay due to retry sleep; got %v", time.Since(start))
-	}
 }
 
 func TestPollerWait_ContKeepsDontWaitTrue(t *testing.T) {

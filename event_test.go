@@ -3,7 +3,7 @@ package wiimote
 import "testing"
 
 func TestIRSlotValid(t *testing.T) {
-	slot := IRSlot{Vec2{
+	slot := IRSlot{Vec2: Vec2{
 		X: 0,
 		Y: 0,
 	}}
@@ -14,7 +14,7 @@ func TestIRSlotValid(t *testing.T) {
 }
 
 func TestIRSlotInvalid(t *testing.T) {
-	slot := IRSlot{Vec2{
+	slot := IRSlot{Vec2: Vec2{
 		X: 1023,
 		Y: 1023,
 	}}
@@ -26,7 +26,7 @@ func TestIRSlotInvalid(t *testing.T) {
 
 func TestIRSlotMixedvalid(t *testing.T) {
 	// only if both fields are 1023, the slot is invalid!
-	slot := IRSlot{Vec2{
+	slot := IRSlot{Vec2: Vec2{
 		X: 1023,
 		Y: 1024,
 	}}

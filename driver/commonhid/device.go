@@ -249,7 +249,7 @@ func (d *device) readEvent() {
 		case 0:
 			err = nil
 		case 7:
-			err = os.ErrPermission // <---- HERE
+			err = os.ErrPermission
 		case 8:
 			err = io.EOF
 		default:
