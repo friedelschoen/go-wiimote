@@ -3,9 +3,9 @@ package wiimote
 //go:generate morestringer -lookup Lookup{} -output stringer.go Led Key:cconst FeatureKind
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"time"
 )
 
 type Memory interface {
@@ -56,12 +56,6 @@ type Device interface {
 	// See the WatchEvent event for more information.
 	Available(iface FeatureKind) bool
 
-	// SetIRFull sets
-	IRFull() bool
-
-	// SetIRFull sets
-	SetIRFull(fullreport bool)
-
 	// LED reads the LED state for the given LED.
 	//
 	// LEDs are a static feature that does not have to be opened first.
@@ -91,30 +85,21 @@ type Device interface {
 }
 
 type Poller[T any] interface {
-	// Poll attempts to retrieve an event or data.
+	// PollEvent retrieves the next available event without blocking
 	//
 	// Return values:
 	//   T:     the retrieved data (invalid if error == ErrRetry)
-	//   bool:  indicates whether more data is immediately available without
-	//          waiting for I/O readiness
 	//   error: nil on success. If ErrRetry is returned, the call should be
 	//          repeated without waiting. Any other error aborts the attempt.
-	Poll() (T, bool, error)
+	PollEvent() (T, error)
 
-	// Wait waits for an event up to the specified timeout. A negative timeout is considered forever.
-	// It handles ErrRetry internally and returns the first valid event or error.
-	Wait(timeout time.Duration) (T, error)
-
-	// Wait waits for an event up to the specified timeout. A negative timeout is considered forever.
-	WaitReadable(timeout time.Duration) error
-
-	// Handle continuously polls and calls `yield` with new events.
-	// It blocks forever and should be used in a new goroutine.
-	Handle(yield func(T)) error
-
-	// Stream continuously polls and writes events into ch. It is a wrapper for Handle.
-	// It blocks forever and should be used in a new goroutine.
+	// NextEvent retrieves the next available event but does block
+	// if none are currently available. This function is blocking until context
+	// releases it.
 	//
-	//	p.Handle(func(ev T) { ch <- ev })
-	Stream(ch chan<- T)
+	// Return values:
+	//   T:     the retrieved data (invalid if error == ErrRetry)
+	//   error: nil on success. If ErrRetry is returned, the call should be
+	//          repeated without waiting. Any other error aborts the attempt.
+	NextEvent(context.Context) (T, error)
 }

@@ -3,11 +3,14 @@
 package driver
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/friedelschoen/go-udev"
 	"github.com/friedelschoen/go-wiimote"
 	"github.com/friedelschoen/go-wiimote/driver/commonhid"
 	"github.com/friedelschoen/go-wiimote/driver/linuxhidraw"
 	"github.com/friedelschoen/go-wiimote/driver/linuxkernel"
-	"github.com/friedelschoen/go-wiimote/driver/udev"
 )
 
 func NewEnumerate() wiimote.DeviceEnumerator {
@@ -22,11 +25,13 @@ func NewDevice(info wiimote.DeviceInfo, backend Backend) (wiimote.Device, error)
 	switch backend {
 	case BackendKernel:
 		return linuxkernel.NewDevice(info, NewMonitor, NewEnumerate)
-	default:
+	case BackendHID:
 		transport, err := linuxhidraw.NewTransportFromInfo(info)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("unable to open device: %w", err)
 		}
 		return commonhid.NewDevice(transport), nil
+	default:
+		return nil, errors.New("unknown backend")
 	}
 }

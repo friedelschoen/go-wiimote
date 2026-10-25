@@ -6,10 +6,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/friedelschoen/go-udev/sequences"
 	"github.com/friedelschoen/go-wiimote"
 	"github.com/friedelschoen/go-wiimote/driver"
 	"github.com/friedelschoen/go-wiimote/internal/common"
-	"github.com/friedelschoen/go-wiimote/internal/sequences"
 )
 
 // IterDevices returns all currently available devices. It returns an error if the

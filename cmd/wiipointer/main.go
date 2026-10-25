@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -125,7 +126,7 @@ func watchDevice(dev wiimote.Device) {
 	var lastAccel *wiimote.EventAccel
 	var hold time.Time
 	for {
-		ev, err := dev.Wait(-1)
+		ev, err := dev.NextEvent(context.Background())
 		if err != nil {
 			log.Printf("unable to poll event: %v\n", err)
 		}
@@ -205,7 +206,7 @@ func main() {
 
 	fmt.Println("waiting for devices...")
 	for {
-		dev, err := monitor.Wait(-1)
+		dev, err := monitor.NextEvent(context.Background())
 		if err != nil || dev == nil {
 			log.Printf("error while polling: %v\n", err)
 			continue

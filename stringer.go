@@ -10,124 +10,6 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[FeatureCore-1]
-	_ = x[FeatureAccel-2]
-	_ = x[FeatureIR-4]
-	_ = x[FeatureSpeaker-8]
-	_ = x[FeatureMotionPlus-16]
-	_ = x[FeatureNunchuck-32]
-	_ = x[FeatureClassicController-64]
-	_ = x[FeatureBalanceBoard-128]
-	_ = x[FeatureProController-256]
-	_ = x[FeatureDrums-512]
-	_ = x[FeatureGuitar-1024]
-}
-
-func LookupFeatureKind(name string) (FeatureKind, bool) {
-	// fnv1a32 hash
-	var h uint32 = 2166136261
-	for i := 0; i < len(name); i++ {
-		h ^= uint32(name[i])
-		h *= 16777619
-	}
-
-	switch h {
-	case 0x0219726b:
-		if name == "FeatureAccel" {
-			return FeatureAccel, true
-		}
-	case 0x33dc1bea:
-		if name == "FeatureIR" {
-			return FeatureIR, true
-		}
-	case 0x5ca129b7:
-		if name == "FeatureClassicController" {
-			return FeatureClassicController, true
-		}
-	case 0x5fa46612:
-		if name == "FeatureDrums" {
-			return FeatureDrums, true
-		}
-	case 0x71997d97:
-		if name == "FeatureGuitar" {
-			return FeatureGuitar, true
-		}
-	case 0x8a54c0fa:
-		if name == "FeatureSpeaker" {
-			return FeatureSpeaker, true
-		}
-	case 0x9018d2ae:
-		if name == "FeatureNunchuck" {
-			return FeatureNunchuck, true
-		}
-	case 0x934b54b8:
-		if name == "FeatureProController" {
-			return FeatureProController, true
-		}
-	case 0xb5758d69:
-		if name == "FeatureBalanceBoard" {
-			return FeatureBalanceBoard, true
-		}
-	case 0xbb96eb46:
-		if name == "FeatureCore" {
-			return FeatureCore, true
-		}
-	case 0xdf1c6893:
-		if name == "FeatureMotionPlus" {
-			return FeatureMotionPlus, true
-		}
-	}
-	return 0, false
-}
-
-const (
-	_FeatureKind_name_0 = "FeatureCoreFeatureAccel"
-	_FeatureKind_name_1 = "FeatureIR"
-	_FeatureKind_name_2 = "FeatureSpeaker"
-	_FeatureKind_name_3 = "FeatureMotionPlus"
-	_FeatureKind_name_4 = "FeatureNunchuck"
-	_FeatureKind_name_5 = "FeatureClassicController"
-	_FeatureKind_name_6 = "FeatureBalanceBoard"
-	_FeatureKind_name_7 = "FeatureProController"
-	_FeatureKind_name_8 = "FeatureDrums"
-	_FeatureKind_name_9 = "FeatureGuitar"
-)
-
-var (
-	_FeatureKind_index_0 = [...]uint8{0, 11, 23}
-)
-
-func (i FeatureKind) String() string {
-	switch {
-	case 1 <= i && i <= 2:
-		i -= 1
-		return _FeatureKind_name_0[_FeatureKind_index_0[i]:_FeatureKind_index_0[i+1]]
-	case i == 4:
-		return _FeatureKind_name_1
-	case i == 8:
-		return _FeatureKind_name_2
-	case i == 16:
-		return _FeatureKind_name_3
-	case i == 32:
-		return _FeatureKind_name_4
-	case i == 64:
-		return _FeatureKind_name_5
-	case i == 128:
-		return _FeatureKind_name_6
-	case i == 256:
-		return _FeatureKind_name_7
-	case i == 512:
-		return _FeatureKind_name_8
-	case i == 1024:
-		return _FeatureKind_name_9
-	default:
-		return "FeatureKind(" + strconv.FormatInt(int64(i), 10) + ")"
-	}
-}
-func _() {
-	// An "invalid array index" compiler error signifies that the constant values have changed.
-	// Re-run the stringer command to generate them again.
-	var x [1]struct{}
 	_ = x[Led1-1]
 	_ = x[Led2-2]
 	_ = x[Led3-4]
@@ -355,4 +237,122 @@ func (i Key) String() string {
 		return "Key(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _Key_name[_Key_index[idx]:_Key_index[idx+1]]
+}
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[FeatureCore-1]
+	_ = x[FeatureAccel-2]
+	_ = x[FeatureIR-4]
+	_ = x[FeatureSpeaker-8]
+	_ = x[FeatureMotionPlus-16]
+	_ = x[FeatureNunchuck-32]
+	_ = x[FeatureClassicController-64]
+	_ = x[FeatureBalanceBoard-128]
+	_ = x[FeatureProController-256]
+	_ = x[FeatureDrums-512]
+	_ = x[FeatureGuitar-1024]
+}
+
+func LookupFeatureKind(name string) (FeatureKind, bool) {
+	// fnv1a32 hash
+	var h uint32 = 2166136261
+	for i := 0; i < len(name); i++ {
+		h ^= uint32(name[i])
+		h *= 16777619
+	}
+
+	switch h {
+	case 0x0219726b:
+		if name == "FeatureAccel" {
+			return FeatureAccel, true
+		}
+	case 0x33dc1bea:
+		if name == "FeatureIR" {
+			return FeatureIR, true
+		}
+	case 0x5ca129b7:
+		if name == "FeatureClassicController" {
+			return FeatureClassicController, true
+		}
+	case 0x5fa46612:
+		if name == "FeatureDrums" {
+			return FeatureDrums, true
+		}
+	case 0x71997d97:
+		if name == "FeatureGuitar" {
+			return FeatureGuitar, true
+		}
+	case 0x8a54c0fa:
+		if name == "FeatureSpeaker" {
+			return FeatureSpeaker, true
+		}
+	case 0x9018d2ae:
+		if name == "FeatureNunchuck" {
+			return FeatureNunchuck, true
+		}
+	case 0x934b54b8:
+		if name == "FeatureProController" {
+			return FeatureProController, true
+		}
+	case 0xb5758d69:
+		if name == "FeatureBalanceBoard" {
+			return FeatureBalanceBoard, true
+		}
+	case 0xbb96eb46:
+		if name == "FeatureCore" {
+			return FeatureCore, true
+		}
+	case 0xdf1c6893:
+		if name == "FeatureMotionPlus" {
+			return FeatureMotionPlus, true
+		}
+	}
+	return 0, false
+}
+
+const (
+	_FeatureKind_name_0 = "FeatureCoreFeatureAccel"
+	_FeatureKind_name_1 = "FeatureIR"
+	_FeatureKind_name_2 = "FeatureSpeaker"
+	_FeatureKind_name_3 = "FeatureMotionPlus"
+	_FeatureKind_name_4 = "FeatureNunchuck"
+	_FeatureKind_name_5 = "FeatureClassicController"
+	_FeatureKind_name_6 = "FeatureBalanceBoard"
+	_FeatureKind_name_7 = "FeatureProController"
+	_FeatureKind_name_8 = "FeatureDrums"
+	_FeatureKind_name_9 = "FeatureGuitar"
+)
+
+var (
+	_FeatureKind_index_0 = [...]uint8{0, 11, 23}
+)
+
+func (i FeatureKind) String() string {
+	switch {
+	case 1 <= i && i <= 2:
+		i -= 1
+		return _FeatureKind_name_0[_FeatureKind_index_0[i]:_FeatureKind_index_0[i+1]]
+	case i == 4:
+		return _FeatureKind_name_1
+	case i == 8:
+		return _FeatureKind_name_2
+	case i == 16:
+		return _FeatureKind_name_3
+	case i == 32:
+		return _FeatureKind_name_4
+	case i == 64:
+		return _FeatureKind_name_5
+	case i == 128:
+		return _FeatureKind_name_6
+	case i == 256:
+		return _FeatureKind_name_7
+	case i == 512:
+		return _FeatureKind_name_8
+	case i == 1024:
+		return _FeatureKind_name_9
+	default:
+		return "FeatureKind(" + strconv.FormatInt(int64(i), 10) + ")"
+	}
 }

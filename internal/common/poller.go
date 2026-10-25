@@ -1,10 +1,10 @@
 package common
 
 import (
+	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
-	"time"
 
 	"github.com/friedelschoen/go-wiimote"
 	"golang.org/x/sys/unix"
@@ -24,17 +24,15 @@ type pollerDriver[T any] interface {
 	//
 	// Return values:
 	//   T:     the retrieved data (invalid if err == ErrWouldBlock)
-	//   bool:  indicates whether more data is immediately available without waiting
 	//   error: nil on success. ErrWouldBlock means "no event right now".
 	//          Any other error aborts the attempt.
-	Poll() (T, bool, error)
+	PollEvent() (T, error)
 }
 
 // poller drives a PollMonitor using poll(2) or retry logic.
 type poller[T any] struct {
-	drv  pollerDriver[T]
-	fd   int
-	wait bool
+	drv pollerDriver[T]
+	fd  int
 }
 
 // NewPoller creates a new poller for the given driver.
@@ -43,113 +41,110 @@ func NewPoller[T any](drv pollerDriver[T]) wiimote.Poller[T] {
 	return &poller[T]{drv: drv, fd: -1}
 }
 
-func (p *poller[T]) Poll() (T, bool, error) {
-	return p.drv.Poll()
+func (p *poller[T]) PollEvent() (T, error) {
+	return p.drv.PollEvent()
 }
 
 // WaitReadable waits until the driver FD is readable or a timeout passes.
 // timeout < 0 means "wait forever".
-func (p *poller[T]) WaitReadable(timeout time.Duration) error {
+func (p *poller[T]) waitReadable(ctx context.Context) error {
 	if p.fd < 0 {
 		p.fd = p.drv.FD()
 	}
 	if p.fd < 0 {
-		// Driver does not provide an FD; caller must rely on retry.
-		return nil
+		return errors.New("driver has no pollable file descriptor")
 	}
 
-	fds := []unix.PollFd{{
-		Fd:     int32(p.fd),
-		Events: unix.POLLIN,
-	}}
+	if ctx == nil {
+		ctx = context.Background()
+	}
 
-	ms := -1
-	if timeout >= 0 {
-		ms = int(timeout.Milliseconds())
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
+	cancelFD, err := unix.Eventfd(
+		0,
+		unix.EFD_CLOEXEC|unix.EFD_NONBLOCK,
+	)
+	if err != nil {
+		return fmt.Errorf("eventfd: %w", err)
+	}
+	defer unix.Close(cancelFD)
+
+	done := make(chan struct{})
+	defer close(done)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			var buf [8]byte
+			binary.NativeEndian.PutUint64(buf[:], 1)
+			_, _ = unix.Write(cancelFD, buf[:])
+
+		case <-done:
+		}
+	}()
+
+	fds := []unix.PollFd{
+		{
+			Fd:     int32(p.fd),
+			Events: unix.POLLIN,
+		},
+		{
+			Fd:     int32(cancelFD),
+			Events: unix.POLLIN,
+		},
 	}
 
 	for {
-		n, err := unix.Poll(fds, ms)
+		_, err := unix.Poll(fds, -1)
 		if err != nil {
 			if errors.Is(err, unix.EINTR) {
-				// interrupted by signal; retry
 				continue
 			}
 			return err
 		}
 
-		// timeout
-		if n == 0 {
-			return nil
+		if fds[1].Revents&unix.POLLIN != 0 {
+			return ctx.Err()
 		}
 
-		re := fds[0].Revents
-		if re&(unix.POLLERR|unix.POLLHUP|unix.POLLNVAL) != 0 {
-			return fmt.Errorf("poll revents=%#x", re)
+		revents := fds[0].Revents
+
+		if revents&unix.POLLNVAL != 0 {
+			return fmt.Errorf("poll: invalid fd")
 		}
-		// POLLIN (or friends) means: readable
-		return nil
+
+		if revents&unix.POLLERR != 0 {
+			return fmt.Errorf("poll: device error")
+		}
+
+		if revents&unix.POLLHUP != 0 {
+			return fmt.Errorf("poll: device disconnected")
+		}
+
+		if revents&unix.POLLIN != 0 {
+			return nil
+		}
 	}
 }
 
-func (p *poller[T]) Wait(timeout time.Duration) (T, error) {
+func (p *poller[T]) NextEvent(ctx context.Context) (T, error) {
 	for {
-		if p.wait {
-			if err := p.WaitReadable(timeout); err != nil {
-				var zero T
-				return zero, err
-			}
-		}
+		ev, err := p.drv.PollEvent()
 
-		ev, more, err := p.drv.Poll()
 		switch {
 		case err == nil:
-			p.wait = !more
 			return ev, nil
 
-		case errors.Is(err, ErrWouldBlock):
-			// nothing available now; next iteration should wait for readability.
-			p.wait = true
-			continue
+		case !errors.Is(err, ErrWouldBlock):
+			return ev, err
+		}
 
-		default:
-			// hard error
+		if err := p.waitReadable(ctx); err != nil {
 			var zero T
 			return zero, err
 		}
 	}
-}
-
-func (p *poller[T]) drain(yield func(T)) {
-	for {
-		ev, more, err := p.drv.Poll()
-		switch {
-		case err == nil:
-			yield(ev)
-			if !more {
-				return
-			}
-			continue
-
-		case errors.Is(err, ErrWouldBlock):
-			return
-
-		default:
-			log.Printf("error while polling for event: %v", err)
-			return
-		}
-	}
-}
-
-func (p *poller[T]) Handle(yield func(T)) error {
-	for {
-		p.drain(yield)
-		if err := p.WaitReadable(-1); err != nil {
-			return err
-		}
-	}
-}
-
-func (p *poller[T]) Stream(ch chan<- T) {
-	p.Handle(func(ev T) { ch <- ev })
 }

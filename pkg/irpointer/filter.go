@@ -12,6 +12,12 @@ type Filter interface {
 
 type FilterChain []Filter
 
+func (chain FilterChain) Reset() {
+	for _, f := range chain {
+		f.Reset()
+	}
+}
+
 func (chain FilterChain) Apply(frame Frame) Frame {
 	for _, f := range chain {
 		frame = f.Apply(frame)

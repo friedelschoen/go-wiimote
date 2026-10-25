@@ -114,7 +114,8 @@ type Vec3 struct {
 
 // Rect represents a 2D floating point rectangle, streched over an Min and Max point.
 type Rect struct {
-	Min, Max Vec2
+	Min Vec2 `json:"min"`
+	Max Vec2 `json:"max"`
 }
 
 func (r Rect) Contains(p Vec2) bool {
@@ -172,9 +173,9 @@ type EventIR struct {
 // IRSlot describes Infra-Red Tracking on a WiiMote
 type IRSlot struct {
 	Vec2
-	Size      uint8
-	Bounds    Rect
-	Intensity uint8
+	Size      uint8 `json:"size"`
+	Bounds    Rect  `json:"bounds"`
+	Intensity uint8 `json:"intensity"`
 }
 
 // Valid returns wether this slot holds a valid source. If not it has no track and is considered disabled.
@@ -319,8 +320,8 @@ type EventGuitarMove struct {
 // EventFeature is provided when a feature is added.
 type EventFeature struct {
 	Event
-	Kind    FeatureKind
-	Removed bool
+	Kind    FeatureKind `json:"kind"`
+	Removed bool        `json:"removed"`
 }
 
 // EventGone provides Removal Event.

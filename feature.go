@@ -31,7 +31,22 @@ type RumbleFeature interface {
 type MemoryFeature interface {
 	Feature
 
+	// Memory returns an object to receive and write memory inside the Wiimote
 	Memory() (Memory, error)
+}
+
+type IRFeature interface {
+	Feature
+
+	// SetIRFull enables or disables full IR reports.
+	//
+	// Those reports contain bounds and intensity of a blob
+	// but as they are sent splitted in two parts, a lower throughput can be reached.
+	// Acceleration is also sent less frequent.
+	SetIRFull(fullreport bool)
+
+	// IRFull returns whether full IR reports are enabled. See SetIRFull for more information.
+	IRFull() bool
 }
 
 type MotionPlusFeature interface {
